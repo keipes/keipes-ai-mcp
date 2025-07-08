@@ -1,11 +1,11 @@
 # Project Definition
 
-This is a MCP server.
+This is a serverless Model Context Protocol application.
 
-- Hosted on AWS Amplify.
-- Serverless.
-- Uses AWS Lambda functions to implement backend.
-- Uses CDK for infrastructure as code.
+- Hosting is AWS.
+- Serverless architecture.
+- Uses CDK v2 for infrastructure as code.
+- Python is the primary programming language.
 
 # Code Implementation Guidelines
 
@@ -15,3 +15,42 @@ When writing code, focus on minimal functional implementations:
 - Avoid unnecessary error handling, logging, or defensive programming
 - Skip comprehensive testing, validation, or edge case handling
 - Prioritize simplicity and getting to a functional result quickly
+
+# Phases
+
+## Phase 1: Planning
+
+- Create a plan.json in the root directory of this project.
+- Use Plan Definition Format to outline the project structure.
+
+### Plan Definition Format
+
+#### Directory Definition
+
+```
+{
+    "directory": "<module path>",
+    "description"?: "<Brief description of the module>",
+    "files"?: [
+        "<file1>",
+        "<file2>"
+    ],
+    "subDirectories"?: [
+        <directory1>,
+        <directory2>
+    ]
+}
+```
+
+#### File Definition
+
+File: A specific file within a module that contains code or configuration.
+
+```
+{
+    "name": "<file name>",
+    "description"?: "<Brief description of the file>",
+    "dependencies"?: ["<dependency1>", "<dependency2>"],
+    "exports"?: ["<export1>", "<export2>"],
+}
+```
