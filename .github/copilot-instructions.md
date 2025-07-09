@@ -6,12 +6,20 @@
 
 This is a Model Context Protocol server.
 
-- Kotlin is the primary programming language.
-- Prefer Asynchronous programming.
-- Use Netty.
-- User Reactor Netty
-- Use the official MCP Java SDK - `io.modelcontextprotocol.sdk:mcp:0.8.0`
-- Use Slf4j for logging.
+- Rust is the primary programming language.
+- Use Rust Model Context Protocol (MCP) SDK. https://github.com/modelcontextprotocol/rust-sdk
+- Use HTTP/SSE transport for MCP.
+
+- Include these components
+  - Main: "main.rs"
+  - MCPServer: "lib.rs"
+  - handlers/PromptHandler
+  - handlers/ToolHandler
+    - Echo tool.
+  - handlers/ResourceHandler
+  - Dummy implementation.
+  - tests/IntegrationTest
+    - Query for available tools.
 
 # Code Implementation Guidelines
 
@@ -29,63 +37,74 @@ When writing code, focus on minimal functional implementations:
 MCP Documentation
 
 - https://modelcontextprotocol.io/specification/2025-06-18
-- https://modelcontextprotocol.io/sdk/java/mcp-overview
-- https://modelcontextprotocol.io/sdk/java/mcp-server
-
-Reactor Documentation
-
-- https://projectreactor.io/docs/core/release/reference/reactiveProgramming.html
-
-Reactor Netty Documentation
-
-- https://projectreactor.io/docs/netty/release/reference/http-server.html
 
 # Phases
 
 ## Phase 1: Planning
 
 - Review Resources.
-- Understand the project requirements and architecture.
-- Familiarize yourself with the Model Context Protocol and its components.
-- Determine the structure of the project, including modules and their relationships.
-- Define the roles and responsibilities of each module in the project.
-- Establish the communication protocols between modules.
-- Identify the data flow and how data will be processed within the application.
-- If you need additional context or information, ask for it before proceeding with the implementation.
+- Create a PlantUML Diagram in `architecture.puml`.
+- Include public classes, methods, constants, and their relationships.
+- Include class data fields.
+- Include input and output types for methods.
+- Exclude &self from method signatures.
+- Exclude Result/Error wrappers from method signatures.
+- Include dependencies on external libraries.
+- Include definitions for any custom types.
+- Include the files custom types are defined in.
+- Place Custom Types in the same package as the file that defines them.
+- Include links between all classes and the files they are defined in.
+- Include links for relations like "creates", "uses", "delegates", or "calls".
+- Exclude links for relations like "returns" , "references type".
+- Example PlantUML Diagram:
 
-- Create a plan.json in the root directory of this project.
-- Use Plan Definition Format to outline the project structure.
+```plantuml
+@startuml
+allowmixing
 
-### Plan Definition Format
+file "Cargo.toml" as cargo_toml
 
-```
-{
-    "directory": "<module path>",
-    "description"?: "<Brief description of the module>",
-    "files"?: [
-        "<file1>",
-        "<file2>"
-    ],
-    "subDirectories"?: [
-        <directory1>,
-        <directory2>
-    ]
+package "src" {
+    file "main.rs" as main_rs
+    class "Main" {
+        +main()
+    }
+    package "components" {
+        file "subcomponent.rs" as subcomponent_rs
+        class Subcomponent {
+            -data_field: SomeDataType
+            +new()
+            +do_something()
+        }
+        class SomeDataType {
+            +field1: String
+            +field2: i32
+        }
+    }
 }
-```
 
-#### File Definition
-
-File: A specific file within a module that contains code or configuration.
-
-```
-{
-    "name": "<file name>",
-    "description"?: "<Brief description of the file>",
-    "dependencies"?: ["<dependency1>", "<dependency2>"],
-    "exports"?: ["<export1>", "<export2>"],
+package "tests" {
+    file "integration_test.rs" as integration_test_rs
+    class IntegrationTest
 }
+package "External Crates" {
+    class "some_crate" {
+        +do_something()
+    }
+}
+
+Main --> main_rs
+Subcomponent --> subcomponent_rs
+SomeDataType --> subcomponent_rs
+IntegrationTest --> integration_test_rs
+some_crate --> cargo_toml
+
+Main ..> Subcomponent : creates
+Subcomponent ..> some_crate : uses
+
+@enduml
 ```
 
 ## Phase 2: Implementation
 
-- Implement the project structure as defined in the plan.json.
+- Implement the project structure as defined in the `architecture.puml`.
