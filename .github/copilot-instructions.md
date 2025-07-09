@@ -1,11 +1,16 @@
+# Copilot Instructions
+
+- Use extreme brevity at all times.
+
 # Project Definition
 
-This is a serverless Model Context Protocol application.
+This is a Model Context Protocol server.
 
-- Hosting is AWS.
-- Serverless architecture.
-- Uses CDK v2 for infrastructure as code.
-- Typescript is the primary programming language.
+- Java is the primary programming language.
+- Prefer Asynchronous programming.
+- Use Netty.
+- User Reactor Netty
+- Use the official MCP Java SDK - `io.modelcontextprotocol.sdk:mcp:0.8.0`
 
 # Code Implementation Guidelines
 
@@ -17,20 +22,25 @@ When writing code, focus on minimal functional implementations:
 - Prioritize simplicity.
 - Reduce amount of code to the bare minimum required for functionality.
 
+# Resources
+
+MCP Documentation
+
+- https://modelcontextprotocol.io/
+- https://github.com/modelcontextprotocol
+- https://modelcontextprotocol.io/sdk/java/mcp-server
+
 # Phases
 
 ## Phase 1: Planning
 
+- Review MCP Documentation.
 - Understand the project requirements and architecture.
 - Familiarize yourself with the Model Context Protocol and its components.
-- Review the AWS services that will be used in the project.
-- Ensure you have the necessary permissions and access to AWS resources.
-- Identify the key components of the serverless architecture.
 - Determine the structure of the project, including modules and their relationships.
 - Define the roles and responsibilities of each module in the project.
 - Establish the communication protocols between modules.
 - Identify the data flow and how data will be processed within the application.
-- Review the AWS CDK v2 documentation for Typescript to understand how to define infrastructure as code.
 - If you need additional context or information, ask for it before proceeding with the implementation.
 
 - Create a plan.json in the root directory of this project.
