@@ -107,3 +107,7 @@ Subcomponent ..> some_crate : uses
 ## Phase 2: Implementation
 
 - Implement the project structure as defined in the `architecture.puml`.
+- Full end-to-end functionality is required.
+- Test with
+  - `npx mcp-remote --help`
+  - `npx -p mcp-remote@latest mcp-remote-client http://localhost:8000/mcp`
