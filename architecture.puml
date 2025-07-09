@@ -1,0 +1,115 @@
+@startuml keipes-ai-mcp-architecture
+allowmixing
+
+file "Cargo.toml" as cargo_toml
+
+package "src" {
+    file "main.rs" as main_rs
+    class "Main" {
+        +main()
+    }
+    
+    file "lib.rs" as lib_rs
+    class "McpServer" {
+        -handlers: HandlerManager
+        +new() -> McpServer
+        +run() -> Result<(), std::io::Error>
+        +shutdown()
+    }
+    
+    package "handlers" {
+        file "mod.rs" as handlers_mod_rs
+        file "prompt_handler.rs" as prompt_handler_rs
+        file "tool_handler.rs" as tool_handler_rs
+        file "resource_handler.rs" as resource_handler_rs
+        
+        class "HandlerManager" {
+            -prompt_handler: PromptHandler
+            -tool_handler: ToolHandler
+            -resource_handler: ResourceHandler
+            +new() -> HandlerManager
+            +get_prompt_handler() -> &PromptHandler
+            +get_tool_handler() -> &ToolHandler
+            +get_resource_handler() -> &ResourceHandler
+        }
+        
+        class "PromptHandler" {
+            +new() -> PromptHandler
+            +get_prompt(request: GetPromptRequestParam) -> Result<GetPromptResult, McpError>
+            +list_prompts(request: Option<PaginatedRequestParam>) -> Result<ListPromptsResult, McpError>
+        }
+        
+        class "ToolHandler" {
+            +new() -> ToolHandler
+            +call_tool(request: CallToolRequestParam) -> Result<CallToolResult, McpError>
+            +list_tools(request: Option<PaginatedRequestParam>) -> Result<ListToolsResult, McpError>
+        }
+        
+        class "ResourceHandler" {
+            +new() -> ResourceHandler
+            +read_resource(request: ReadResourceRequestParam) -> Result<ReadResourceResult, McpError>
+            +list_resources(request: Option<PaginatedRequestParam>) -> Result<ListResourcesResult, McpError>
+        }
+        
+        class "EchoTool" {
+            +name: String
+            +description: String
+            +execute(input: String) -> String
+        }
+    }
+}
+
+package "tests" {
+    file "integration_test.rs" as integration_test_rs
+    class "IntegrationTest" {
+        +test_list_tools()
+        +test_echo_tool()
+        +test_server_startup()
+    }
+}
+
+package "External Crates" {
+    class "rmcp" {
+        +SseServer
+        +ServerHandler
+        +Transport
+    }
+    class "tokio" {
+        +main
+        +spawn
+    }
+    class "serde" {
+        +Serialize
+        +Deserialize
+    }
+    class "axum" {
+        +Router
+        +serve
+    }
+}
+
+Main --> main_rs
+McpServer --> lib_rs
+HandlerManager --> handlers_mod_rs
+PromptHandler --> prompt_handler_rs
+ToolHandler --> tool_handler_rs
+ResourceHandler --> resource_handler_rs
+EchoTool --> tool_handler_rs
+IntegrationTest --> integration_test_rs
+
+rmcp --> cargo_toml
+tokio --> cargo_toml
+serde --> cargo_toml
+axum --> cargo_toml
+
+Main ..> McpServer : creates
+McpServer ..> HandlerManager : creates
+HandlerManager ..> PromptHandler : creates
+HandlerManager ..> ToolHandler : creates
+HandlerManager ..> ResourceHandler : creates
+ToolHandler ..> EchoTool : creates
+McpServer ..> rmcp : uses
+Main ..> tokio : uses
+IntegrationTest ..> McpServer : uses
+
+@enduml

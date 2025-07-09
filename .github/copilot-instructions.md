@@ -9,8 +9,7 @@ This is a Model Context Protocol server.
 - Rust is the primary programming language.
 - Use Rust Model Context Protocol (MCP) SDK. https://github.com/modelcontextprotocol/rust-sdk
 - Use HTTP/SSE transport for MCP.
-
-- Include these components
+- Start with these components and add to them as needed:
   - Main: "main.rs"
   - MCPServer: "lib.rs"
   - handlers/PromptHandler
