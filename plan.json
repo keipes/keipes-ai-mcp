@@ -1,0 +1,279 @@
+{
+  "directory": ".",
+  "description": "Serverless Model Context Protocol application with AWS CDK v2 infrastructure",
+  "files": [
+    {
+      "name": "package.json",
+      "description": "Project dependencies and scripts for the MCP application",
+      "dependencies": [],
+      "exports": []
+    },
+    {
+      "name": "tsconfig.json",
+      "description": "TypeScript configuration for the entire project",
+      "dependencies": [],
+      "exports": []
+    },
+    {
+      "name": "cdk.json",
+      "description": "CDK configuration file for deployment settings",
+      "dependencies": [],
+      "exports": []
+    },
+    {
+      "name": "README.md",
+      "description": "Project documentation and setup instructions",
+      "dependencies": [],
+      "exports": []
+    }
+  ],
+  "subDirectories": [
+    {
+      "directory": "src",
+      "description": "Core application source code for MCP server implementation",
+      "files": [
+        {
+          "name": "index.ts",
+          "description": "Main entry point for the MCP server",
+          "dependencies": ["@modelcontextprotocol/sdk"],
+          "exports": ["handler"]
+        }
+      ],
+      "subDirectories": [
+        {
+          "directory": "src/handlers",
+          "description": "Lambda function handlers for MCP operations",
+          "files": [
+            {
+              "name": "mcp-handler.ts",
+              "description": "Main MCP protocol handler for processing requests",
+              "dependencies": [
+                "@modelcontextprotocol/sdk",
+                "@aws-lambda-powertools/logger"
+              ],
+              "exports": ["mcpHandler"]
+            },
+            {
+              "name": "tools-handler.ts",
+              "description": "Handler for MCP tools and function calls",
+              "dependencies": ["@modelcontextprotocol/sdk"],
+              "exports": ["toolsHandler"]
+            },
+            {
+              "name": "resources-handler.ts",
+              "description": "Handler for MCP resources and content retrieval",
+              "dependencies": ["@modelcontextprotocol/sdk"],
+              "exports": ["resourcesHandler"]
+            }
+          ]
+        },
+        {
+          "directory": "src/mcp",
+          "description": "MCP protocol implementation and server logic",
+          "files": [
+            {
+              "name": "server.ts",
+              "description": "MCP server implementation with protocol handling",
+              "dependencies": ["@modelcontextprotocol/sdk"],
+              "exports": ["MCPServer"]
+            },
+            {
+              "name": "transport.ts",
+              "description": "Transport layer for MCP communication over WebSocket/HTTP",
+              "dependencies": ["@modelcontextprotocol/sdk"],
+              "exports": ["Transport"]
+            },
+            {
+              "name": "protocol.ts",
+              "description": "MCP protocol message handling and validation",
+              "dependencies": ["@modelcontextprotocol/sdk"],
+              "exports": ["ProtocolHandler"]
+            }
+          ]
+        },
+        {
+          "directory": "src/tools",
+          "description": "MCP tools implementation for external capabilities",
+          "files": [
+            {
+              "name": "index.ts",
+              "description": "Tool registry and exports",
+              "dependencies": ["@modelcontextprotocol/sdk"],
+              "exports": ["toolRegistry", "getAllTools"]
+            },
+            {
+              "name": "calculator.ts",
+              "description": "Example calculator tool for mathematical operations",
+              "dependencies": ["@modelcontextprotocol/sdk"],
+              "exports": ["calculatorTool"]
+            },
+            {
+              "name": "weather.ts",
+              "description": "Weather information tool using external API",
+              "dependencies": ["@modelcontextprotocol/sdk", "axios"],
+              "exports": ["weatherTool"]
+            }
+          ]
+        },
+        {
+          "directory": "src/resources",
+          "description": "MCP resources for data and content access",
+          "files": [
+            {
+              "name": "index.ts",
+              "description": "Resource registry and exports",
+              "dependencies": ["@modelcontextprotocol/sdk"],
+              "exports": ["resourceRegistry", "getAllResources"]
+            },
+            {
+              "name": "file-system.ts",
+              "description": "File system resource for accessing files",
+              "dependencies": ["@modelcontextprotocol/sdk", "fs", "path"],
+              "exports": ["fileSystemResource"]
+            },
+            {
+              "name": "web-content.ts",
+              "description": "Web content resource for fetching web pages",
+              "dependencies": ["@modelcontextprotocol/sdk", "axios"],
+              "exports": ["webContentResource"]
+            }
+          ]
+        },
+        {
+          "directory": "src/types",
+          "description": "TypeScript type definitions for the application",
+          "files": [
+            {
+              "name": "mcp.ts",
+              "description": "MCP-specific type definitions and interfaces",
+              "dependencies": ["@modelcontextprotocol/sdk"],
+              "exports": ["MCPRequest", "MCPResponse", "MCPError"]
+            },
+            {
+              "name": "aws.ts",
+              "description": "AWS-specific type definitions for Lambda and API Gateway",
+              "dependencies": ["@types/aws-lambda"],
+              "exports": ["LambdaEvent", "LambdaContext", "APIGatewayEvent"]
+            }
+          ]
+        },
+        {
+          "directory": "src/utils",
+          "description": "Utility functions and helpers",
+          "files": [
+            {
+              "name": "logger.ts",
+              "description": "Logging utility for structured logging",
+              "dependencies": ["@aws-lambda-powertools/logger"],
+              "exports": ["logger"]
+            },
+            {
+              "name": "validation.ts",
+              "description": "Input validation and schema checking utilities",
+              "dependencies": ["zod"],
+              "exports": ["validateRequest", "schemas"]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "directory": "infrastructure",
+      "description": "AWS CDK infrastructure as code for serverless deployment",
+      "files": [
+        {
+          "name": "app.ts",
+          "description": "CDK app entry point for infrastructure deployment",
+          "dependencies": ["aws-cdk-lib", "constructs"],
+          "exports": []
+        }
+      ],
+      "subDirectories": [
+        {
+          "directory": "infrastructure/stacks",
+          "description": "CDK stack definitions for different environments",
+          "files": [
+            {
+              "name": "mcp-stack.ts",
+              "description": "Main stack for MCP server infrastructure",
+              "dependencies": ["aws-cdk-lib", "constructs"],
+              "exports": ["MCPStack"]
+            },
+            {
+              "name": "api-stack.ts",
+              "description": "API Gateway and Lambda function stack",
+              "dependencies": ["aws-cdk-lib", "constructs"],
+              "exports": ["APIStack"]
+            },
+            {
+              "name": "storage-stack.ts",
+              "description": "Storage resources including S3 and DynamoDB",
+              "dependencies": ["aws-cdk-lib", "constructs"],
+              "exports": ["StorageStack"]
+            }
+          ]
+        },
+        {
+          "directory": "infrastructure/constructs",
+          "description": "Reusable CDK constructs for common patterns",
+          "files": [
+            {
+              "name": "lambda-function.ts",
+              "description": "Reusable Lambda function construct with common configuration",
+              "dependencies": ["aws-cdk-lib", "constructs"],
+              "exports": ["LambdaFunction"]
+            },
+            {
+              "name": "api-gateway.ts",
+              "description": "API Gateway construct with WebSocket and REST API support",
+              "dependencies": ["aws-cdk-lib", "constructs"],
+              "exports": ["MCPApiGateway"]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "directory": "config",
+      "description": "Configuration files for different environments",
+      "files": [
+        {
+          "name": "development.json",
+          "description": "Development environment configuration",
+          "dependencies": [],
+          "exports": []
+        },
+        {
+          "name": "production.json",
+          "description": "Production environment configuration",
+          "dependencies": [],
+          "exports": []
+        },
+        {
+          "name": "mcp-config.ts",
+          "description": "MCP server configuration and capabilities definition",
+          "dependencies": ["@modelcontextprotocol/sdk"],
+          "exports": ["mcpConfig", "serverCapabilities"]
+        }
+      ]
+    },
+    {
+      "directory": "scripts",
+      "description": "Build and deployment scripts",
+      "files": [
+        {
+          "name": "deploy.ts",
+          "description": "Deployment script for CDK stacks",
+          "dependencies": ["aws-cdk-lib"],
+          "exports": []
+        },
+        {
+          "name": "build.ts",
+          "description": "Build script for Lambda functions and assets",
+          "dependencies": ["esbuild"],
+          "exports": []
+        }
+      ]
+    }
+  ]
+}

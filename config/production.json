@@ -1,0 +1,11 @@
+{
+  "environment": "production",
+  "logLevel": "INFO",
+  "mcpServer": {
+    "port": 80,
+    "host": "0.0.0.0"
+  },
+  "aws": {
+    "region": "us-east-1"
+  }
+}

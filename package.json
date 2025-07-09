@@ -1,0 +1,36 @@
+{
+  "name": "keipes-ai-mcp",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Serverless Model Context Protocol application with AWS CDK v2 infrastructure",
+  "main": "dist/src/index.js",
+  "scripts": {
+    "build": "tsc && node scripts/build.ts",
+    "deploy": "node scripts/deploy.ts",
+    "dev": "tsc --watch",
+    "cdk": "cdk",
+    "test": "node dist/test/calculator.test.js"
+  },
+  "dependencies": {
+    "@aws-lambda-powertools/logger": "^2.0.0",
+    "aws-cdk-lib": "^2.0.0",
+    "constructs": "^10.0.0",
+    "axios": "^1.6.0",
+    "zod": "^3.22.0"
+  },
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.0",
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0",
+    "esbuild": "^0.19.0"
+  },
+  "keywords": [
+    "mcp",
+    "serverless",
+    "aws",
+    "cdk",
+    "typescript"
+  ],
+  "author": "keipes",
+  "license": "MIT"
+}

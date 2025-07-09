@@ -1,0 +1,11 @@
+{
+  "environment": "development",
+  "logLevel": "DEBUG",
+  "mcpServer": {
+    "port": 3000,
+    "host": "localhost"
+  },
+  "aws": {
+    "region": "us-east-1"
+  }
+}
