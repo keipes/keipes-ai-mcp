@@ -6,11 +6,12 @@
 
 This is a Model Context Protocol server.
 
-- Java is the primary programming language.
+- Kotlin is the primary programming language.
 - Prefer Asynchronous programming.
 - Use Netty.
 - User Reactor Netty
 - Use the official MCP Java SDK - `io.modelcontextprotocol.sdk:mcp:0.8.0`
+- Use Slf4j for logging.
 
 # Code Implementation Guidelines
 
