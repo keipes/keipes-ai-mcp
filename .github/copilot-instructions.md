@@ -5,7 +5,8 @@ This is a serverless Model Context Protocol application.
 - Hosting is AWS.
 - Serverless architecture.
 - Uses CDK v2 for infrastructure as code.
-- Python is the primary programming language.
+- Golang is the primary programming language.
+- Use Typescript for CDK scripts.
 
 # Code Implementation Guidelines
 
@@ -13,7 +14,7 @@ When writing code, focus on minimal functional implementations:
 
 - Write only the essential code needed for a working solution
 - Avoid unnecessary error handling, logging, or defensive programming
-- Skip comprehensive testing, validation, or edge case handling
+- Skip comprehensive testing, validation, documentation, or edge case handling
 - Prioritize simplicity and getting to a functional result quickly
 
 # Phases
@@ -54,3 +55,7 @@ File: A specific file within a module that contains code or configuration.
     "exports"?: ["<export1>", "<export2>"],
 }
 ```
+
+## Phase 2: Implementation
+
+- Implement the project structure as defined in the plan.json.
