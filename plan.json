@@ -1,0 +1,182 @@
+{
+  "directory": ".",
+  "description": "Serverless Model Context Protocol application on AWS using CDK v2 and Golang",
+  "files": [
+    {
+      "name": "go.mod",
+      "description": "Go module definition with MCP and AWS SDK dependencies"
+    },
+    {
+      "name": "go.sum",
+      "description": "Go module checksums"
+    },
+    {
+      "name": "README.md",
+      "description": "Project documentation and setup instructions"
+    },
+    {
+      "name": ".gitignore",
+      "description": "Git ignore patterns for Go and AWS CDK"
+    }
+  ],
+  "subDirectories": [
+    {
+      "directory": "infrastructure",
+      "description": "AWS CDK v2 infrastructure as code in Go",
+      "files": [
+        {
+          "name": "go.mod",
+          "description": "Go module for CDK infrastructure",
+          "dependencies": [
+            "github.com/aws/aws-cdk-go/awscdk/v2",
+            "github.com/aws/constructs-go/constructs/v10"
+          ]
+        },
+        {
+          "name": "go.sum",
+          "description": "Go module checksums for infrastructure"
+        },
+        {
+          "name": "cdk.json",
+          "description": "CDK configuration"
+        },
+        {
+          "name": "main.go",
+          "description": "CDK application entry point",
+          "exports": ["main"]
+        },
+        {
+          "name": "stack.go",
+          "description": "Main CDK stack definition with Lambda and API Gateway",
+          "dependencies": [
+            "github.com/aws/aws-cdk-go/awscdk/v2/awslambda",
+            "github.com/aws/aws-cdk-go/awscdk/v2/awsapigateway"
+          ],
+          "exports": ["NewMcpStack"]
+        }
+      ]
+    },
+    {
+      "directory": "src",
+      "description": "Core Go source code for MCP server implementation",
+      "files": [
+        {
+          "name": "main.go",
+          "description": "Main entry point for the MCP server",
+          "exports": ["main"]
+        },
+        {
+          "name": "mcp.go",
+          "description": "Model Context Protocol implementation",
+          "exports": ["McpServer", "HandleRequest"]
+        },
+        {
+          "name": "types.go",
+          "description": "MCP protocol types and structures",
+          "exports": ["McpRequest", "McpResponse", "Tool", "Resource"]
+        }
+      ],
+      "subDirectories": [
+        {
+          "directory": "handlers",
+          "description": "HTTP and Lambda event handlers",
+          "files": [
+            {
+              "name": "lambda.go",
+              "description": "AWS Lambda handler function",
+              "dependencies": ["github.com/aws/aws-lambda-go/lambda"],
+              "exports": ["Handler"]
+            },
+            {
+              "name": "http.go",
+              "description": "HTTP request/response handling",
+              "exports": ["HttpHandler"]
+            }
+          ]
+        },
+        {
+          "directory": "tools",
+          "description": "MCP tools implementation",
+          "files": [
+            {
+              "name": "registry.go",
+              "description": "Tool registry and management",
+              "exports": ["ToolRegistry", "RegisterTool"]
+            },
+            {
+              "name": "example_tool.go",
+              "description": "Example MCP tool implementation",
+              "exports": ["ExampleTool"]
+            }
+          ]
+        },
+        {
+          "directory": "resources",
+          "description": "MCP resources implementation",
+          "files": [
+            {
+              "name": "registry.go",
+              "description": "Resource registry and management",
+              "exports": ["ResourceRegistry", "RegisterResource"]
+            },
+            {
+              "name": "example_resource.go",
+              "description": "Example MCP resource implementation",
+              "exports": ["ExampleResource"]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "directory": "lambda",
+      "description": "Lambda deployment artifacts and build scripts",
+      "files": [
+        {
+          "name": "Makefile",
+          "description": "Build automation for Lambda deployment"
+        },
+        {
+          "name": "build.sh",
+          "description": "Shell script to build Go binary for Lambda"
+        }
+      ]
+    },
+    {
+      "directory": "scripts",
+      "description": "Development and deployment scripts",
+      "files": [
+        {
+          "name": "deploy.sh",
+          "description": "Deployment script for CDK stack"
+        },
+        {
+          "name": "test.sh",
+          "description": "Testing script for MCP endpoints"
+        },
+        {
+          "name": "local-dev.sh",
+          "description": "Local development server startup"
+        }
+      ]
+    },
+    {
+      "directory": "docs",
+      "description": "Documentation and API specifications",
+      "files": [
+        {
+          "name": "api.md",
+          "description": "MCP API documentation"
+        },
+        {
+          "name": "deployment.md",
+          "description": "Deployment guide"
+        },
+        {
+          "name": "architecture.md",
+          "description": "System architecture overview"
+        }
+      ]
+    }
+  ]
+}

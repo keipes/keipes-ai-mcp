@@ -1,0 +1,31 @@
+# Go
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+go.work
+
+# CDK
+cdk.out/
+*.js
+*.js.map
+*.d.ts
+node_modules/
+
+# AWS
+.aws-sam/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+bootstrap
+main
