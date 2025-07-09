@@ -1,7 +1,7 @@
 import * as cdk from "aws-cdk-lib";
 import { Construct } from "constructs";
-import { APIStack } from "./api-stack";
-import { StorageStack } from "./storage-stack";
+import { APIStack } from "./api-stack.js";
+import { StorageStack } from "./storage-stack.js";
 
 export class MCPStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
