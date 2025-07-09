@@ -13,21 +13,27 @@ package "src" {
     class "McpServer" {
         -server_info: ServerInfo
         -config: ServerConfig
+        -prompt_handler: Arc<PromptHandler>
+        -tool_handler: Arc<ToolHandler>
+        -resource_handler: Arc<ResourceHandler>
         +new(config: ServerConfig) : McpServer
-        +start() : Result<()>
+        +start()
         +shutdown()
+        +handle_mcp_request(payload: serde_json::Value) : Json<serde_json::Value>
     }
     
     package "handlers" {
         file "prompt_handler.rs" as prompt_handler_rs
         class "PromptHandler" {
-            +list_prompts(request: PaginatedRequestParam) : ListPromptsResult
+            +new() : PromptHandler
+            +list_prompts(request: Option<PaginatedRequestParam>) : ListPromptsResult
             +get_prompt(request: GetPromptRequestParam) : GetPromptResult
         }
         
         file "tool_handler.rs" as tool_handler_rs
         class "ToolHandler" {
-            +list_tools(request: PaginatedRequestParam) : ListToolsResult
+            +new() : ToolHandler
+            +list_tools(request: Option<PaginatedRequestParam>) : ListToolsResult
             +call_tool(request: CallToolRequestParam) : CallToolResult
             +echo_tool(text: String) : String
         }
@@ -37,7 +43,8 @@ package "src" {
         
         file "resource_handler.rs" as resource_handler_rs
         class "ResourceHandler" {
-            +list_resources(request: PaginatedRequestParam) : ListResourcesResult
+            +new() : ResourceHandler
+            +list_resources(request: Option<PaginatedRequestParam>) : ListResourcesResult
             +read_resource(request: ReadResourceRequestParam) : ReadResourceResult
         }
     }
@@ -64,9 +71,10 @@ package "src" {
 package "tests" {
     file "integration_test.rs" as integration_test_rs
     class "IntegrationTest" {
+        +test_server_startup()
         +test_list_tools()
         +test_echo_tool()
-        +test_server_startup()
+        +test_call_tool()
     }
 }
 
@@ -78,6 +86,7 @@ package "External Crates" {
         +ServiceExt
         +RmcpError
         +transport
+        +model
     }
     class "tokio" {
         +main
@@ -94,6 +103,14 @@ package "External Crates" {
     }
     class "tokio_util" {
         +sync
+    }
+    class "axum" {
+        +Json
+        +routing
+        +Router
+    }
+    class "reqwest" {
+        +Client
     }
 }
 
@@ -112,6 +129,8 @@ tokio --> cargo_toml
 serde --> cargo_toml
 rmcp_macros --> cargo_toml
 tokio_util --> cargo_toml
+axum --> cargo_toml
+reqwest --> cargo_toml
 
 Main ..> McpServer : creates
 Main ..> ServerConfig : creates
@@ -120,12 +139,16 @@ McpServer ..> ToolHandler : uses
 McpServer ..> ResourceHandler : uses
 McpServer ..> rmcp : uses
 McpServer ..> tokio : uses
+McpServer ..> axum : uses
 McpServer ..> ServerInfo : uses
 McpServer ..> ServerConfig : uses
 ToolHandler ..> rmcp : uses
 ToolHandler ..> rmcp_macros : uses
 ToolHandler ..> EchoRequest : uses
+PromptHandler ..> rmcp : uses
+ResourceHandler ..> rmcp : uses
 IntegrationTest ..> McpServer : uses
 IntegrationTest ..> tokio_util : uses
+IntegrationTest ..> reqwest : uses
 
 @enduml
