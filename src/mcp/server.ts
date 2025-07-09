@@ -1,16 +1,11 @@
-import {
-  Server,
-  CallToolRequestSchema,
-  ListToolsRequestSchema,
-} from "../types/mcp-sdk";
-import { getAllTools } from "../tools";
-import { getAllResources } from "../resources";
+import { McpServer } from "../types/mcp-sdk";
+import { registerTools } from "../tools";
 
 export class MCPServer {
-  private server: Server;
+  private server: McpServer;
 
   constructor() {
-    this.server = new Server(
+    this.server = new McpServer(
       {
         name: "keipes-ai-mcp",
         version: "1.0.0",
@@ -23,31 +18,22 @@ export class MCPServer {
       }
     );
 
-    this.setupHandlers();
+    this.setupTools();
   }
 
-  private setupHandlers() {
-    this.server.setRequestHandler(ListToolsRequestSchema, async () => {
-      return { tools: getAllTools() };
-    });
-
-    this.server.setRequestHandler(
-      CallToolRequestSchema,
-      async (request: any) => {
-        const tools = getAllTools();
-        const tool = tools.find((t: any) => t.name === request.params.name);
-
-        if (!tool) {
-          throw new Error(`Tool ${request.params.name} not found`);
-        }
-
-        return tool.handler(request.params.arguments);
-      }
-    );
+  private setupTools() {
+    registerTools(this.server);
   }
 
-  async handleRequest(requestBody: string) {
-    const request = JSON.parse(requestBody);
-    return await this.server.handleRequest(request);
+  async connect(transport: any) {
+    return await this.server.connect(transport);
+  }
+
+  async close() {
+    return await this.server.close();
+  }
+
+  isConnected() {
+    return this.server.isConnected();
   }
 }

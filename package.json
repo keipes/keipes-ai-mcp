@@ -5,7 +5,8 @@
   "description": "Serverless Model Context Protocol application with AWS CDK v2 infrastructure",
   "main": "dist/src/index.js",
   "scripts": {
-    "build": "tsc && node scripts/build.ts",
+    "build": "tsc",
+    "build:lambda": "tsc && node scripts/build.ts",
     "deploy": "node scripts/deploy.ts",
     "dev": "tsc --watch",
     "cdk": "cdk",
@@ -15,6 +16,7 @@
   },
   "dependencies": {
     "@aws-lambda-powertools/logger": "^2.0.0",
+    "@modelcontextprotocol/sdk": "^1.15.0",
     "aws-cdk-lib": "^2.0.0",
     "axios": "^1.6.0",
     "constructs": "^10.0.0",

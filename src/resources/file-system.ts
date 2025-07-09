@@ -1,8 +1,14 @@
 import * as fs from "fs";
 import * as path from "path";
-import { MCPResource } from "../types/mcp-sdk";
 
-export const fileSystemResource: MCPResource = {
+export interface FileSystemResource {
+  name: string;
+  description: string;
+  readFile: (filePath: string) => Promise<string>;
+  listDirectory: (dirPath: string) => Promise<string[]>;
+}
+
+export const fileSystemResource: FileSystemResource = {
   name: "file-system",
   description: "Provides access to file system resources",
   readFile: async (filePath: string) => {

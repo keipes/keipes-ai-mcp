@@ -1,6 +1,19 @@
-import { calculatorTool } from "./calculator";
-import { weatherTool } from "./weather";
+import { McpServer } from "../types/mcp-sdk";
+import { calculatorToolSchema, calculatorToolCallback } from "./calculator";
+import { weatherToolSchema, weatherToolCallback } from "./weather";
 
-export const toolRegistry = [calculatorTool, weatherTool];
+export const registerTools = (server: McpServer) => {
+  server.tool(
+    "calculator",
+    "Performs basic mathematical calculations",
+    calculatorToolSchema,
+    calculatorToolCallback
+  );
 
-export const getAllTools = () => toolRegistry;
+  server.tool(
+    "weather",
+    "Gets weather information for a location",
+    weatherToolSchema,
+    weatherToolCallback
+  );
+};

@@ -1,10 +1,18 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda";
-import { getAllTools } from "../tools";
 
 export const toolsHandler = async (
   event: APIGatewayProxyEvent
 ): Promise<APIGatewayProxyResult> => {
-  const tools = getAllTools();
+  const tools = [
+    {
+      name: "calculator",
+      description: "Performs basic mathematical calculations",
+    },
+    {
+      name: "weather",
+      description: "Gets weather information for a location",
+    },
+  ];
 
   return {
     statusCode: 200,
