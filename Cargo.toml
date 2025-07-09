@@ -1,0 +1,25 @@
+[package]
+name = "keipes-ai-mcp"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+rmcp = { version = "0.2", features = ["server", "transport-sse-server", "macros"] }
+rmcp-macros = "0.2"
+tokio = { version = "1.0", features = ["full"] }
+tokio-util = "0.7"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+axum = "0.8"
+
+[lib]
+name = "keipes_ai_mcp"
+path = "src/lib.rs"
+
+[[bin]]
+name = "main"
+path = "src/main.rs"
+
+[dev-dependencies]
+anyhow = "1.0"
+reqwest = { version = "0.12", features = ["json"] }
