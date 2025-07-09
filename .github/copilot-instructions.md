@@ -20,21 +20,30 @@ When writing code, focus on minimal functional implementations:
 - Avoid unnecessary error handling, logging, or defensive programming.
 - Skip comprehensive testing, validation, documentation, or edge case handling.
 - Prioritize simplicity.
+- Prioritize separation of concerns.
 - Reduce amount of code to the bare minimum required for functionality.
 
 # Resources
 
 MCP Documentation
 
-- https://modelcontextprotocol.io/
-- https://github.com/modelcontextprotocol
+- https://modelcontextprotocol.io/specification/2025-06-18
+- https://modelcontextprotocol.io/sdk/java/mcp-overview
 - https://modelcontextprotocol.io/sdk/java/mcp-server
+
+Reactor Documentation
+
+- https://projectreactor.io/docs/core/release/reference/reactiveProgramming.html
+
+Reactor Netty Documentation
+
+- https://projectreactor.io/docs/netty/release/reference/http-server.html
 
 # Phases
 
 ## Phase 1: Planning
 
-- Review MCP Documentation.
+- Review Resources.
 - Understand the project requirements and architecture.
 - Familiarize yourself with the Model Context Protocol and its components.
 - Determine the structure of the project, including modules and their relationships.
