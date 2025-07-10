@@ -1,62 +1,46 @@
 use rmcp::model::*;
 use serde::{Serialize, Deserialize};
 use std::sync::Arc;
+use std::collections::HashMap;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct EchoRequest {
     pub text: String,
 }
 
-pub struct ToolHandler;
+pub trait ToolTrait {
+    fn name(&self) -> &str;
+    fn description(&self) -> &str;
+    fn input_schema(&self) -> serde_json::Value;
+    async fn execute(&self, arguments: Option<serde_json::Map<String, serde_json::Value>>) -> Result<CallToolResult, ErrorData>;
+}
 
-impl ToolHandler {
-    pub fn new() -> Self {
-        Self
+pub struct EchoTool;
+
+impl ToolTrait for EchoTool {
+    fn name(&self) -> &str {
+        "echo"
     }
 
-    pub async fn list_tools(&self, _request: Option<PaginatedRequestParam>) -> ListToolsResult {
-        let tools = vec![
-            Tool {
-                name: "echo".into(),
-                description: Some("Echo the input text back".into()),
-                input_schema: Arc::new({
-                    let mut schema = serde_json::Map::new();
-                    schema.insert("type".to_string(), serde_json::Value::String("object".to_string()));
-                    
-                    let mut properties = serde_json::Map::new();
-                    let mut text_prop = serde_json::Map::new();
-                    text_prop.insert("type".to_string(), serde_json::Value::String("string".to_string()));
-                    text_prop.insert("description".to_string(), serde_json::Value::String("The text to echo back".to_string()));
-                    properties.insert("text".to_string(), serde_json::Value::Object(text_prop));
-                    
-                    schema.insert("properties".to_string(), serde_json::Value::Object(properties));
-                    schema.insert("required".to_string(), serde_json::Value::Array(vec![serde_json::Value::String("text".to_string())]));
-                    
-                    schema
-                }),
-                annotations: None,
-            }
-        ];
-        
-        ListToolsResult { 
-            tools,
-            next_cursor: None,
-        }
+    fn description(&self) -> &str {
+        "Echo the input text back"
     }
 
-    pub async fn call_tool(&self, request: CallToolRequestParam) -> Result<CallToolResult, ErrorData> {
-        match request.name.as_ref() {
-            "echo" => self.echo_tool(&request).await,
-            _ => Err(ErrorData {
-                code: ErrorCode(-32601),
-                message: format!("Tool '{}' not found", request.name).into(),
-                data: None,
-            }),
-        }
+    fn input_schema(&self) -> serde_json::Value {
+        serde_json::json!({
+            "type": "object",
+            "properties": {
+                "text": {
+                    "type": "string",
+                    "description": "The text to echo back"
+                }
+            },
+            "required": ["text"]
+        })
     }
 
-    pub async fn echo_tool(&self, request: &CallToolRequestParam) -> Result<CallToolResult, ErrorData> {
-        let text = request.arguments
+    async fn execute(&self, arguments: Option<serde_json::Map<String, serde_json::Value>>) -> Result<CallToolResult, ErrorData> {
+        let text = arguments
             .as_ref()
             .and_then(|args| args.get("text"))
             .and_then(|v| v.as_str())
@@ -70,6 +54,64 @@ impl ToolHandler {
             content: vec![Content::text(text)],
             is_error: Some(false),
         })
+    }
+}
+
+pub struct ToolHandler {
+    tools: HashMap<String, Arc<dyn ToolTrait + Send + Sync>>,
+}
+
+impl Clone for ToolHandler {
+    fn clone(&self) -> Self {
+        Self {
+            tools: self.tools.clone(),
+        }
+    }
+}
+
+impl ToolHandler {
+    pub fn new() -> Self {
+        let mut tools = HashMap::new();
+        let echo_tool = Arc::new(EchoTool);
+        tools.insert(echo_tool.name().to_string(), echo_tool);
+        
+        Self { tools }
+    }
+
+    pub fn capabilities(&self) -> HashMap<String, serde_json::Value> {
+        let mut capabilities = HashMap::new();
+        for tool in self.tools.values() {
+            capabilities.insert(tool.name().to_string(), tool.input_schema());
+        }
+        capabilities
+    }
+
+    pub async fn list_tools(&self, _request: Option<PaginatedRequestParam>) -> ListToolsResult {
+        let tools = self.tools.values().map(|tool| {
+            Tool {
+                name: tool.name().into(),
+                description: Some(tool.description().into()),
+                input_schema: Arc::new(tool.input_schema().as_object().unwrap().clone()),
+                annotations: None,
+            }
+        }).collect();
+        
+        ListToolsResult { 
+            tools,
+            next_cursor: None,
+        }
+    }
+
+    pub async fn call_tool(&self, request: CallToolRequestParam) -> Result<CallToolResult, ErrorData> {
+        if let Some(tool) = self.tools.get(&request.name) {
+            tool.execute(request.arguments).await
+        } else {
+            Err(ErrorData {
+                code: ErrorCode(-32601),
+                message: format!("Tool '{}' not found", request.name).into(),
+                data: None,
+            })
+        }
     }
 }
 
@@ -101,7 +143,7 @@ mod tests {
             arguments: Some(args),
         };
         
-        let result = handler.echo_tool(&request).await;
+        let result = handler.call_tool(request).await;
         assert!(result.is_ok());
         
         let response = result.unwrap();

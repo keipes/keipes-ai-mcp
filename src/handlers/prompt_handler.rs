@@ -1,5 +1,6 @@
 use rmcp::model::*;
 
+#[derive(Clone)]
 pub struct PromptHandler;
 
 impl PromptHandler {
