@@ -108,6 +108,11 @@ impl McpServer {
                     Self::jsonrpc_error(id, -32602, "Invalid params")
                 }
             },
+            "resources/templates/list" => {
+                let params = payload.get("params").and_then(|p| serde_json::from_value(p.clone()).ok());
+                let templates_result = self.resource_handler.list_resource_templates(params).await;
+                Self::jsonrpc_result(id, serde_json::to_value(templates_result).unwrap())
+            },
             "prompts/list" => {
                 let params = payload.get("params").and_then(|p| serde_json::from_value(p.clone()).ok());
                 let prompts_result = self.prompt_handler.list_prompts(params).await;

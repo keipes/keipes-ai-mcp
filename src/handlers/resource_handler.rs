@@ -13,6 +13,13 @@ pub trait ResourceTrait {
     fn read(&self) -> Pin<Box<dyn Future<Output = Result<Vec<ResourceContents>, ErrorData>> + Send + '_>>;
 }
 
+pub trait ResourceTemplateTrait {
+    fn uri_template(&self) -> &str;
+    fn name(&self) -> &str;
+    fn description(&self) -> Option<&str>;
+    fn mime_type(&self) -> Option<&str>;
+}
+
 pub struct ExampleResource;
 
 impl ResourceTrait for ExampleResource {
@@ -49,14 +56,130 @@ impl ResourceTrait for ExampleResource {
     }
 }
 
+pub struct TemplateResource;
+
+impl ResourceTrait for TemplateResource {
+    fn uri(&self) -> &str {
+        "template://greeting"
+    }
+
+    fn name(&self) -> &str {
+        "Greeting Template"
+    }
+
+    fn description(&self) -> Option<&str> {
+        Some("A template for greeting messages")
+    }
+
+    fn mime_type(&self) -> Option<&str> {
+        Some("text/template")
+    }
+
+    fn size(&self) -> Option<u32> {
+        Some(256)
+    }
+
+    fn read(&self) -> Pin<Box<dyn Future<Output = Result<Vec<ResourceContents>, ErrorData>> + Send + '_>> {
+        let uri = self.uri().to_string();
+        Box::pin(async move {
+            let template_content = r#"
+# Greeting Template
+
+Hello, {{name}}!
+
+Welcome to our {{service}}. We're excited to have you here.
+
+## Next Steps
+1. Explore our features
+2. Configure your preferences
+3. Start using {{service}}
+
+Best regards,
+The {{service}} Team
+"#;
+            Ok(vec![
+                ResourceContents::text(template_content, &uri)
+            ])
+        })
+    }
+}
+
+pub struct CodeTemplateResource;
+
+impl ResourceTrait for CodeTemplateResource {
+    fn uri(&self) -> &str {
+        "template://rust-function"
+    }
+
+    fn name(&self) -> &str {
+        "Rust Function Template"
+    }
+
+    fn description(&self) -> Option<&str> {
+        Some("A template for creating Rust functions")
+    }
+
+    fn mime_type(&self) -> Option<&str> {
+        Some("text/rust")
+    }
+
+    fn size(&self) -> Option<u32> {
+        Some(512)
+    }
+
+    fn read(&self) -> Pin<Box<dyn Future<Output = Result<Vec<ResourceContents>, ErrorData>> + Send + '_>> {
+        let uri = self.uri().to_string();
+        Box::pin(async move {
+            let template_content = r#"
+/// {{description}}
+/// 
+/// # Arguments
+/// 
+/// * `{{param_name}}` - {{param_description}}
+/// 
+/// # Returns
+/// 
+/// {{return_description}}
+/// 
+/// # Example
+/// 
+/// ```
+/// let result = {{function_name}}({{example_param}});
+/// assert_eq!(result, {{expected_result}});
+/// ```
+pub fn {{function_name}}({{param_name}}: {{param_type}}) -> {{return_type}} {
+    // TODO: Implement function logic
+    todo!()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_{{function_name}}() {
+        // TODO: Add test cases
+        todo!()
+    }
+}
+"#;
+            Ok(vec![
+                ResourceContents::text(template_content, &uri)
+            ])
+        })
+    }
+}
+
 pub struct ResourceHandler {
     resources: HashMap<String, Arc<dyn ResourceTrait + Send + Sync>>,
+    resource_templates: HashMap<String, Arc<dyn ResourceTemplateTrait + Send + Sync>>,
 }
 
 impl Clone for ResourceHandler {
     fn clone(&self) -> Self {
         Self {
             resources: self.resources.clone(),
+            resource_templates: self.resource_templates.clone(),
         }
     }
 }
@@ -64,10 +187,25 @@ impl Clone for ResourceHandler {
 impl ResourceHandler {
     pub fn new() -> Self {
         let mut resources: HashMap<String, Arc<dyn ResourceTrait + Send + Sync>> = HashMap::new();
+        
+        // Add example resource
         let example_resource: Arc<dyn ResourceTrait + Send + Sync> = Arc::new(ExampleResource);
         resources.insert(example_resource.uri().to_string(), example_resource);
         
-        Self { resources }
+        // Add template resources
+        let greeting_template: Arc<dyn ResourceTrait + Send + Sync> = Arc::new(TemplateResource);
+        resources.insert(greeting_template.uri().to_string(), greeting_template);
+        
+        let code_template: Arc<dyn ResourceTrait + Send + Sync> = Arc::new(CodeTemplateResource);
+        resources.insert(code_template.uri().to_string(), code_template);
+        
+        let mut resource_templates: HashMap<String, Arc<dyn ResourceTemplateTrait + Send + Sync>> = HashMap::new();
+        
+        // Add example resource template
+        let example_resource_template: Arc<dyn ResourceTemplateTrait + Send + Sync> = Arc::new(ExampleResourceTemplate);
+        resource_templates.insert(example_resource_template.uri_template().to_string(), example_resource_template);
+        
+        Self { resources, resource_templates }
     }
 
     pub fn capabilities(&self) -> HashMap<String, serde_json::Value> {
@@ -114,6 +252,27 @@ impl ResourceHandler {
             })
         }
     }
+
+    pub async fn list_resource_templates(&self, _request: Option<PaginatedRequestParam>) -> ListResourceTemplatesResult {
+        use rmcp::model::RawResourceTemplate;
+        
+        let resource_templates = self.resource_templates.values().map(|template| {
+            ResourceTemplate::new(
+                RawResourceTemplate {
+                    uri_template: template.uri_template().to_string(),
+                    name: template.name().to_string(),
+                    description: template.description().map(|d| d.to_string()),
+                    mime_type: template.mime_type().map(|m| m.to_string()),
+                },
+                None
+            )
+        }).collect();
+        
+        ListResourceTemplatesResult {
+            resource_templates,
+            next_cursor: None,
+        }
+    }
 }
 
 #[cfg(test)]
@@ -126,11 +285,16 @@ mod tests {
         
         let result = handler.list_resources(None).await;
         
-        assert_eq!(result.resources.len(), 1);
-        assert_eq!(result.resources[0].uri, "memory://example");
-        assert_eq!(result.resources[0].name, "Example Resource");
-        assert_eq!(result.resources[0].description, Some("An example in-memory resource".to_string()));
-        assert_eq!(result.resources[0].mime_type, Some("text/plain".to_string()));
+        assert_eq!(result.resources.len(), 3);
+        
+        // Find the example resource
+        let example_resource = result.resources.iter()
+            .find(|r| r.uri == "memory://example")
+            .expect("Example resource should exist");
+        
+        assert_eq!(example_resource.name, "Example Resource");
+        assert_eq!(example_resource.description, Some("An example in-memory resource".to_string()));
+        assert_eq!(example_resource.mime_type, Some("text/plain".to_string()));
         assert!(result.next_cursor.is_none());
     }
 
@@ -166,5 +330,39 @@ mod tests {
         let error = result.unwrap_err();
         assert_eq!(error.code, ErrorCode(-32601));
         assert!(error.message.contains("Resource 'memory://nonexistent' not found"));
+    }
+
+    #[tokio::test]
+    async fn test_list_resource_templates() {
+        let handler = ResourceHandler::new();
+        
+        let result = handler.list_resource_templates(None).await;
+        
+        assert_eq!(result.resource_templates.len(), 1);
+        assert_eq!(result.resource_templates[0].raw.uri_template, "memory://items/{id}");
+        assert_eq!(result.resource_templates[0].raw.name, "Item Resource");
+        assert_eq!(result.resource_templates[0].raw.description, Some("A template for accessing items by ID".to_string()));
+        assert_eq!(result.resource_templates[0].raw.mime_type, Some("application/json".to_string()));
+        assert!(result.next_cursor.is_none());
+    }
+}
+
+pub struct ExampleResourceTemplate;
+
+impl ResourceTemplateTrait for ExampleResourceTemplate {
+    fn uri_template(&self) -> &str {
+        "memory://items/{id}"
+    }
+
+    fn name(&self) -> &str {
+        "Item Resource"
+    }
+
+    fn description(&self) -> Option<&str> {
+        Some("A template for accessing items by ID")
+    }
+
+    fn mime_type(&self) -> Option<&str> {
+        Some("application/json")
     }
 }

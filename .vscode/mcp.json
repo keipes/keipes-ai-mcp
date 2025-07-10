@@ -1,0 +1,9 @@
+{
+  "servers": {
+    "keipes-ai-mcp": {
+      "url": "http://localhost:8000/mcp",
+      "type": "http"
+    }
+  },
+  "inputs": []
+}
