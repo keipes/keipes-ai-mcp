@@ -199,6 +199,16 @@ impl ResourceHandler {
         let code_template: Arc<dyn ResourceTrait + Send + Sync> = Arc::new(CodeTemplateResource);
         resources.insert(code_template.uri().to_string(), code_template);
         
+        // Add weapons.json file resource
+        let weapons_resource: Arc<dyn ResourceTrait + Send + Sync> = Arc::new(FileResource::new(
+            "file://weapons".to_string(),
+            "Weapons Database".to_string(),
+            r"D:\code\resources\weapons.json".to_string(),
+            Some("application/json".to_string()),
+            Some("External weapons database JSON file".to_string())
+        ));
+        resources.insert(weapons_resource.uri().to_string(), weapons_resource);
+        
         let mut resource_templates: HashMap<String, Arc<dyn ResourceTemplateTrait + Send + Sync>> = HashMap::new();
         
         // Add example resource template
@@ -348,7 +358,7 @@ mod tests {
     #[test]
     fn test_resource_handler_new() {
         let handler = ResourceHandler::new();
-        assert_eq!(handler.resources.len(), 3);
+        assert_eq!(handler.resources.len(), 4);
         assert_eq!(handler.resource_templates.len(), 1);
     }
 
@@ -356,10 +366,11 @@ mod tests {
     fn test_resource_handler_capabilities() {
         let handler = ResourceHandler::new();
         let capabilities = handler.capabilities();
-        assert_eq!(capabilities.len(), 3);
+        assert_eq!(capabilities.len(), 4);
         assert!(capabilities.contains_key("memory://example"));
         assert!(capabilities.contains_key("template://greeting"));
         assert!(capabilities.contains_key("template://rust-function"));
+        assert!(capabilities.contains_key("file://weapons"));
     }
 
     #[test]
@@ -376,7 +387,7 @@ mod tests {
         
         let result = handler.list_resources(None).await;
         
-        assert_eq!(result.resources.len(), 3);
+        assert_eq!(result.resources.len(), 4);
         
         // Find the example resource
         let example_resource = result.resources.iter()
@@ -455,5 +466,62 @@ impl ResourceTemplateTrait for ExampleResourceTemplate {
 
     fn mime_type(&self) -> Option<&str> {
         Some("application/json")
+    }
+}
+
+pub struct FileResource {
+    uri: String,
+    name: String,
+    description: Option<String>,
+    file_path: String,
+    mime_type: Option<String>,
+}
+
+impl FileResource {
+    pub fn new(uri: String, name: String, file_path: String, mime_type: Option<String>, description: Option<String>) -> Self {
+        Self {
+            uri,
+            name,
+            description,
+            file_path,
+            mime_type,
+        }
+    }
+}
+
+impl ResourceTrait for FileResource {
+    fn uri(&self) -> &str {
+        &self.uri
+    }
+
+    fn name(&self) -> &str {
+        &self.name
+    }
+
+    fn description(&self) -> Option<&str> {
+        self.description.as_deref()
+    }
+
+    fn mime_type(&self) -> Option<&str> {
+        self.mime_type.as_deref()
+    }
+
+    fn size(&self) -> Option<u32> {
+        None
+    }
+
+    fn read(&self) -> Pin<Box<dyn Future<Output = Result<Vec<ResourceContents>, ErrorData>> + Send + '_>> {
+        let uri = self.uri.clone();
+        let file_path = self.file_path.clone();
+        Box::pin(async move {
+            match std::fs::read_to_string(&file_path) {
+                Ok(content) => Ok(vec![ResourceContents::text(&content, &uri)]),
+                Err(e) => Err(ErrorData {
+                    code: ErrorCode(-32603),
+                    message: format!("Failed to read file '{}': {}", file_path, e).into(),
+                    data: None,
+                })
+            }
+        })
     }
 }

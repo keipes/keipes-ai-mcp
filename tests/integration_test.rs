@@ -108,7 +108,7 @@ async fn test_list_resources() {
             assert!(json["result"]["resources"].is_array());
             
             let resources = json["result"]["resources"].as_array().unwrap();
-            assert_eq!(resources.len(), 3);
+            assert_eq!(resources.len(), 4);
             
             // Find the example resource
             let example_resource = resources.iter()
