@@ -251,7 +251,8 @@ impl ResourceHandler {
     }
 
     pub async fn read_resource(&self, request: ReadResourceRequestParam) -> Result<ReadResourceResult, ErrorData> {
-        if let Some(resource) = self.resources.get(&request.uri) {
+        let request_uri = request.uri.trim_end_matches('/');
+        if let Some(resource) = self.resources.get(request_uri) {
             let contents = resource.read().await?;
             Ok(ReadResourceResult { contents })
         } else {
