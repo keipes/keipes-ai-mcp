@@ -34,7 +34,7 @@ impl McpServer {
         }
     }
 
-    pub async fn start(&self) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn start(&self) -> Result<(), String> {
         println!("Starting MCP Server on {}:{}", self.config.bind_address, self.config.port);
         
         let app = Router::new()
@@ -42,10 +42,10 @@ impl McpServer {
             .route("/health", get(|| async { "OK" }));
 
         let addr = format!("{}:{}", self.config.bind_address, self.config.port);
-        let listener = TcpListener::bind(&addr).await?;
+        let listener = TcpListener::bind(&addr).await.map_err(|e| e.to_string())?;
         println!("MCP Server listening on {}", addr);
         
-        axum::serve(listener, app).await?;
+        axum::serve(listener, app).await.map_err(|e| e.to_string())?;
         Ok(())
     }
 
@@ -57,6 +57,8 @@ impl McpServer {
 async fn handle_mcp_request(Json(payload): Json<serde_json::Value>) -> Json<serde_json::Value> {
     let method = payload.get("method").and_then(|m| m.as_str()).unwrap_or("");
     let id = payload.get("id").unwrap_or(&serde_json::Value::Null);
+    
+    let tool_handler = ToolHandler::new();
     
     match method {
         "initialize" => {
@@ -78,42 +80,48 @@ async fn handle_mcp_request(Json(payload): Json<serde_json::Value>) -> Json<serd
             }))
         },
         "tools/list" => {
+            let tools_result = tool_handler.list_tools(None).await;
             Json(serde_json::json!({
                 "jsonrpc": "2.0",
                 "id": id,
-                "result": {
-                    "tools": [
-                        {
-                            "name": "echo",
-                            "description": "Echo back the input",
-                            "inputSchema": {
-                                "type": "object",
-                                "properties": {
-                                    "message": {
-                                        "type": "string",
-                                        "description": "The message to echo back"
-                                    }
-                                },
-                                "required": ["message"]
-                            }
-                        }
-                    ]
-                }
+                "result": tools_result
             }))
         },
         "tools/call" => {
-            Json(serde_json::json!({
-                "jsonrpc": "2.0",
-                "id": id,
-                "result": {
-                    "content": [
-                        {
-                            "type": "text",
-                            "text": "Echo: Test message"
+            if let Some(params) = payload.get("params") {
+                if let Ok(call_request) = serde_json::from_value::<rmcp::model::CallToolRequestParam>(params.clone()) {
+                    match tool_handler.call_tool(call_request).await {
+                        Ok(result) => Json(serde_json::json!({
+                            "jsonrpc": "2.0",
+                            "id": id,
+                            "result": result
+                        })),
+                        Err(error) => Json(serde_json::json!({
+                            "jsonrpc": "2.0",
+                            "id": id,
+                            "error": error
+                        }))
+                    }
+                } else {
+                    Json(serde_json::json!({
+                        "jsonrpc": "2.0",
+                        "id": id,
+                        "error": {
+                            "code": -32602,
+                            "message": "Invalid request parameters"
                         }
-                    ]
+                    }))
                 }
-            }))
+            } else {
+                Json(serde_json::json!({
+                    "jsonrpc": "2.0",
+                    "id": id,
+                    "error": {
+                        "code": -32602,
+                        "message": "Invalid params"
+                    }
+                }))
+            }
         },
         _ => {
             Json(serde_json::json!({

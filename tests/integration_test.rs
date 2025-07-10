@@ -28,7 +28,7 @@ async fn test_server_startup() {
     });
     
     let response = client
-        .post("http://127.0.0.1:8001/message")
+        .post("http://127.0.0.1:8001/mcp")
         .header("Content-Type", "application/json")
         .json(&test_message)
         .send()
@@ -39,12 +39,21 @@ async fn test_server_startup() {
             println!("Response status: {}", resp.status());
             let text = resp.text().await.unwrap_or_default();
             println!("Response body: {}", text);
-            assert!(false, "Server responded but we expected it to fail since server is not yet implemented");
+            
+            // Parse response and verify it contains the echo tool
+            let json: serde_json::Value = serde_json::from_str(&text).expect("Valid JSON");
+            assert_eq!(json["jsonrpc"], "2.0");
+            assert_eq!(json["id"], 1);
+            assert!(json["result"]["tools"].is_array());
+            
+            let tools = json["result"]["tools"].as_array().unwrap();
+            assert_eq!(tools.len(), 1);
+            assert_eq!(tools[0]["name"], "echo");
+            
+            println!("✓ Server correctly responded with tools list");
         }
         Err(e) => {
-            println!("Expected error: {}", e);
-            // This is expected since the server doesn't implement HTTP endpoints yet
-            assert!(true, "Server correctly rejected connection - not yet implemented");
+            panic!("Server should have responded but got error: {}", e);
         }
     }
     

@@ -17,8 +17,11 @@ package "src" {
         -tool_handler: Arc<ToolHandler>
         -resource_handler: Arc<ResourceHandler>
         +new(config: ServerConfig) : McpServer
-        +start()
+        +start() : Result<(), String>
         +shutdown()
+    }
+    
+    class "handle_mcp_request" {
         +handle_mcp_request(payload: serde_json::Value) : Json<serde_json::Value>
     }
     
@@ -34,7 +37,7 @@ package "src" {
         class "ToolHandler" {
             +new() : ToolHandler
             +list_tools(request: Option<PaginatedRequestParam>) : ListToolsResult
-            +call_tool(request: CallToolRequestParam) : CallToolResult
+            +call_tool(request: CallToolRequestParam) : Result<CallToolResult, ErrorData>
             +echo_tool(text: String) : String
         }
         class "EchoRequest" {
@@ -116,6 +119,7 @@ package "External Crates" {
 
 Main --> main_rs
 McpServer --> lib_rs
+handle_mcp_request --> lib_rs
 PromptHandler --> prompt_handler_rs
 ToolHandler --> tool_handler_rs
 ResourceHandler --> resource_handler_rs
@@ -134,6 +138,9 @@ reqwest --> cargo_toml
 
 Main ..> McpServer : creates
 Main ..> ServerConfig : creates
+McpServer ..> handle_mcp_request : delegates
+handle_mcp_request ..> ToolHandler : creates
+handle_mcp_request ..> rmcp : uses
 McpServer ..> PromptHandler : uses
 McpServer ..> ToolHandler : uses
 McpServer ..> ResourceHandler : uses
