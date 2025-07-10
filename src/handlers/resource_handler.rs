@@ -1,28 +1,100 @@
 use rmcp::model::*;
+use std::sync::Arc;
+use std::collections::HashMap;
+use std::future::Future;
+use std::pin::Pin;
 
-#[derive(Clone)]
-pub struct ResourceHandler;
+pub trait ResourceTrait {
+    fn uri(&self) -> &str;
+    fn name(&self) -> &str;
+    fn description(&self) -> Option<&str>;
+    fn mime_type(&self) -> Option<&str>;
+    fn size(&self) -> Option<u32>;
+    fn read(&self) -> Pin<Box<dyn Future<Output = Result<Vec<ResourceContents>, ErrorData>> + Send + '_>>;
+}
+
+pub struct ExampleResource;
+
+impl ResourceTrait for ExampleResource {
+    fn uri(&self) -> &str {
+        "memory://example"
+    }
+
+    fn name(&self) -> &str {
+        "Example Resource"
+    }
+
+    fn description(&self) -> Option<&str> {
+        Some("An example in-memory resource")
+    }
+
+    fn mime_type(&self) -> Option<&str> {
+        Some("text/plain")
+    }
+
+    fn size(&self) -> Option<u32> {
+        None
+    }
+
+    fn read(&self) -> Pin<Box<dyn Future<Output = Result<Vec<ResourceContents>, ErrorData>> + Send + '_>> {
+        let uri = self.uri().to_string();
+        Box::pin(async move {
+            Ok(vec![
+                ResourceContents::text(
+                    "This is example content from memory",
+                    &uri
+                )
+            ])
+        })
+    }
+}
+
+pub struct ResourceHandler {
+    resources: HashMap<String, Arc<dyn ResourceTrait + Send + Sync>>,
+}
+
+impl Clone for ResourceHandler {
+    fn clone(&self) -> Self {
+        Self {
+            resources: self.resources.clone(),
+        }
+    }
+}
 
 impl ResourceHandler {
     pub fn new() -> Self {
-        Self
+        let mut resources: HashMap<String, Arc<dyn ResourceTrait + Send + Sync>> = HashMap::new();
+        let example_resource: Arc<dyn ResourceTrait + Send + Sync> = Arc::new(ExampleResource);
+        resources.insert(example_resource.uri().to_string(), example_resource);
+        
+        Self { resources }
+    }
+
+    pub fn capabilities(&self) -> HashMap<String, serde_json::Value> {
+        self.resources.iter().map(|(uri, resource)| {
+            (uri.clone(), serde_json::json!({
+                "name": resource.name(),
+                "description": resource.description(),
+                "mimeType": resource.mime_type()
+            }))
+        }).collect()
     }
 
     pub async fn list_resources(&self, _request: Option<PaginatedRequestParam>) -> ListResourcesResult {
         use rmcp::model::RawResource;
         
-        let resources = vec![
+        let resources = self.resources.values().map(|resource| {
             Resource::new(
                 RawResource {
-                    uri: "memory://example".into(),
-                    name: "Example Resource".to_string(),
-                    description: Some("An example in-memory resource".to_string()),
-                    mime_type: Some("text/plain".to_string()),
-                    size: None,
+                    uri: resource.uri().into(),
+                    name: resource.name().to_string(),
+                    description: resource.description().map(|d| d.to_string()),
+                    mime_type: resource.mime_type().map(|m| m.to_string()),
+                    size: resource.size(),
                 },
                 None
             )
-        ];
+        }).collect();
         
         ListResourcesResult {
             resources,
@@ -31,22 +103,15 @@ impl ResourceHandler {
     }
 
     pub async fn read_resource(&self, request: ReadResourceRequestParam) -> Result<ReadResourceResult, ErrorData> {
-        match request.uri.as_str() {
-            "memory://example" => {
-                Ok(ReadResourceResult {
-                    contents: vec![
-                        ResourceContents::text(
-                            "This is example content from memory",
-                            &request.uri
-                        )
-                    ],
-                })
-            }
-            _ => Err(ErrorData {
+        if let Some(resource) = self.resources.get(&request.uri) {
+            let contents = resource.read().await?;
+            Ok(ReadResourceResult { contents })
+        } else {
+            Err(ErrorData {
                 code: ErrorCode(-32601),
                 message: format!("Resource '{}' not found", request.uri).into(),
                 data: None,
-            }),
+            })
         }
     }
 }

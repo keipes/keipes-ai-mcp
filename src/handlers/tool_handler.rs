@@ -2,6 +2,8 @@ use rmcp::model::*;
 use serde::{Serialize, Deserialize};
 use std::sync::Arc;
 use std::collections::HashMap;
+use std::future::Future;
+use std::pin::Pin;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct EchoRequest {
@@ -12,7 +14,7 @@ pub trait ToolTrait {
     fn name(&self) -> &str;
     fn description(&self) -> &str;
     fn input_schema(&self) -> serde_json::Value;
-    async fn execute(&self, arguments: Option<serde_json::Map<String, serde_json::Value>>) -> Result<CallToolResult, ErrorData>;
+    fn execute(&self, arguments: Option<serde_json::Map<String, serde_json::Value>>) -> Pin<Box<dyn Future<Output = Result<CallToolResult, ErrorData>> + Send + '_>>;
 }
 
 pub struct EchoTool;
@@ -39,20 +41,22 @@ impl ToolTrait for EchoTool {
         })
     }
 
-    async fn execute(&self, arguments: Option<serde_json::Map<String, serde_json::Value>>) -> Result<CallToolResult, ErrorData> {
-        let text = arguments
-            .as_ref()
-            .and_then(|args| args.get("text"))
-            .and_then(|v| v.as_str())
-            .ok_or_else(|| ErrorData {
-                code: ErrorCode(-32602),
-                message: "Invalid arguments: 'text' parameter required".into(),
-                data: None,
-            })?;
+    fn execute(&self, arguments: Option<serde_json::Map<String, serde_json::Value>>) -> Pin<Box<dyn Future<Output = Result<CallToolResult, ErrorData>> + Send + '_>> {
+        Box::pin(async move {
+            let text = arguments
+                .as_ref()
+                .and_then(|args| args.get("text"))
+                .and_then(|v| v.as_str())
+                .ok_or_else(|| ErrorData {
+                    code: ErrorCode(-32602),
+                    message: "Invalid arguments: 'text' parameter required".into(),
+                    data: None,
+                })?;
 
-        Ok(CallToolResult {
-            content: vec![Content::text(text)],
-            is_error: Some(false),
+            Ok(CallToolResult {
+                content: vec![Content::text(text)],
+                is_error: Some(false),
+            })
         })
     }
 }
@@ -71,8 +75,8 @@ impl Clone for ToolHandler {
 
 impl ToolHandler {
     pub fn new() -> Self {
-        let mut tools = HashMap::new();
-        let echo_tool = Arc::new(EchoTool);
+        let mut tools: HashMap<String, Arc<dyn ToolTrait + Send + Sync>> = HashMap::new();
+        let echo_tool: Arc<dyn ToolTrait + Send + Sync> = Arc::new(EchoTool);
         tools.insert(echo_tool.name().to_string(), echo_tool);
         
         Self { tools }
@@ -89,8 +93,8 @@ impl ToolHandler {
     pub async fn list_tools(&self, _request: Option<PaginatedRequestParam>) -> ListToolsResult {
         let tools = self.tools.values().map(|tool| {
             Tool {
-                name: tool.name().into(),
-                description: Some(tool.description().into()),
+                name: tool.name().to_string().into(),
+                description: Some(tool.description().to_string().into()),
                 input_schema: Arc::new(tool.input_schema().as_object().unwrap().clone()),
                 annotations: None,
             }
@@ -103,7 +107,8 @@ impl ToolHandler {
     }
 
     pub async fn call_tool(&self, request: CallToolRequestParam) -> Result<CallToolResult, ErrorData> {
-        if let Some(tool) = self.tools.get(&request.name) {
+        let tool_name = request.name.to_string();
+        if let Some(tool) = self.tools.get(&tool_name) {
             tool.execute(request.arguments).await
         } else {
             Err(ErrorData {

@@ -5,7 +5,6 @@ use handlers::{PromptHandler, ToolHandler, ResourceHandler};
 use types::{ServerConfig, ServerInfo, McpCapabilities, ServerDetails};
 use axum::{Json, routing::{get, post}, Router};
 use tokio::net::TcpListener;
-use std::collections::HashMap;
 
 #[derive(Clone)]
 pub struct McpServer {
@@ -20,12 +19,13 @@ impl McpServer {
     pub fn new(config: ServerConfig) -> Self {
         let prompt_handler = PromptHandler::new();
         let tool_handler = ToolHandler::new();
+        let resource_handler = ResourceHandler::new();
         Self {
             server_info: ServerInfo {
                 protocol_version: "2024-11-05".to_string(),
                 capabilities: McpCapabilities {
                     tools: tool_handler.capabilities(),
-                    resources: HashMap::new(),
+                    resources: resource_handler.capabilities(),
                     prompts: prompt_handler.capabilities(),
                 },
                 server_info: ServerDetails {
@@ -36,7 +36,7 @@ impl McpServer {
             config,
             prompt_handler: prompt_handler,
             tool_handler: tool_handler,
-            resource_handler: ResourceHandler::new(),
+            resource_handler: resource_handler,
         }
     }
 
@@ -68,18 +68,6 @@ impl McpServer {
         
         match method {
             "initialize" => {
-                // let result = serde_json::json!({
-                //     "protocolVersion": "2024-11-05",
-                //     "capabilities": {
-                //         "tools": {},
-                //         "resources": {},
-                //         "prompts": {}
-                //     },
-                //     "serverInfo": {
-                //         "name": "keipes-ai-mcp",
-                //         "version": "0.1.0"
-                //     }
-                // });
                 let result = serde_json::json!(self.server_info);
                 Self::jsonrpc_result(id, result)
             },
