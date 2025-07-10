@@ -87,6 +87,7 @@ async fn handle_mcp_request(Json(payload): Json<serde_json::Value>) -> Json<serd
     let id = payload.get("id").unwrap_or(&serde_json::Value::Null);
     
     let tool_handler = ToolHandler::new();
+    let resource_handler = ResourceHandler::new();
     
     match method {
         "initialize" => {
@@ -112,6 +113,25 @@ async fn handle_mcp_request(Json(payload): Json<serde_json::Value>) -> Json<serd
             if let Some(params) = payload.get("params") {
                 if let Ok(call_request) = serde_json::from_value::<rmcp::model::CallToolRequestParam>(params.clone()) {
                     match tool_handler.call_tool(call_request).await {
+                        Ok(result) => jsonrpc_result(id, serde_json::to_value(result).unwrap()),
+                        Err(error) => jsonrpc_error_with_data(id, error)
+                    }
+                } else {
+                    jsonrpc_error(id, -32602, "Invalid request parameters")
+                }
+            } else {
+                jsonrpc_error(id, -32602, "Invalid params")
+            }
+        },
+        "resources/list" => {
+            let params = payload.get("params").and_then(|p| serde_json::from_value(p.clone()).ok());
+            let resources_result = resource_handler.list_resources(params).await;
+            jsonrpc_result(id, serde_json::to_value(resources_result).unwrap())
+        },
+        "resources/read" => {
+            if let Some(params) = payload.get("params") {
+                if let Ok(read_request) = serde_json::from_value::<rmcp::model::ReadResourceRequestParam>(params.clone()) {
+                    match resource_handler.read_resource(read_request).await {
                         Ok(result) => jsonrpc_result(id, serde_json::to_value(result).unwrap()),
                         Err(error) => jsonrpc_error_with_data(id, error)
                     }

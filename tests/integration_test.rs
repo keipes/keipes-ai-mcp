@@ -60,3 +60,67 @@ async fn test_server_startup() {
     // Clean up
     server_handle.abort();
 }
+
+#[tokio::test]
+async fn test_list_resources() {
+    let config = keipes_ai_mcp::types::ServerConfig {
+        bind_address: "127.0.0.1".to_string(),
+        port: 8002,
+        sse_path: "/sse".to_string(),
+        post_path: "/message".to_string(),
+    };
+
+    let server = McpServer::new(config);
+    
+    // Start server in background
+    let server_handle = tokio::spawn(async move {
+        server.start().await
+    });
+    
+    // Give server time to start
+    tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+    
+    // Send resources/list JSON-RPC message
+    let client = reqwest::Client::new();
+    let test_message = serde_json::json!({
+        "jsonrpc": "2.0",
+        "method": "resources/list",
+        "id": 2
+    });
+    
+    let response = client
+        .post("http://127.0.0.1:8002/mcp")
+        .header("Content-Type", "application/json")
+        .json(&test_message)
+        .send()
+        .await;
+        
+    match response {
+        Ok(resp) => {
+            println!("Response status: {}", resp.status());
+            let text = resp.text().await.unwrap_or_default();
+            println!("Response body: {}", text);
+            
+            // Parse response and verify it contains the example resource
+            let json: serde_json::Value = serde_json::from_str(&text).expect("Valid JSON");
+            assert_eq!(json["jsonrpc"], "2.0");
+            assert_eq!(json["id"], 2);
+            assert!(json["result"]["resources"].is_array());
+            
+            let resources = json["result"]["resources"].as_array().unwrap();
+            assert_eq!(resources.len(), 1);
+            assert_eq!(resources[0]["uri"], "memory://example");
+            assert_eq!(resources[0]["name"], "Example Resource");
+            assert_eq!(resources[0]["description"], "An example in-memory resource");
+            assert_eq!(resources[0]["mimeType"], "text/plain");
+            
+            println!("✓ Server correctly responded with resources list");
+        }
+        Err(e) => {
+            panic!("Server should have responded but got error: {}", e);
+        }
+    }
+    
+    // Clean up
+    server_handle.abort();
+}
