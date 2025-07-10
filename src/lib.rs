@@ -54,6 +54,34 @@ impl McpServer {
     }
 }
 
+// JSON-RPC helper methods
+fn jsonrpc_result(id: &serde_json::Value, result: serde_json::Value) -> Json<serde_json::Value> {
+    Json(serde_json::json!({
+        "jsonrpc": "2.0",
+        "id": id,
+        "result": result
+    }))
+}
+
+fn jsonrpc_error(id: &serde_json::Value, code: i32, message: &str) -> Json<serde_json::Value> {
+    Json(serde_json::json!({
+        "jsonrpc": "2.0",
+        "id": id,
+        "error": {
+            "code": code,
+            "message": message
+        }
+    }))
+}
+
+fn jsonrpc_error_with_data(id: &serde_json::Value, error: rmcp::model::ErrorData) -> Json<serde_json::Value> {
+    Json(serde_json::json!({
+        "jsonrpc": "2.0",
+        "id": id,
+        "error": error
+    }))
+}
+
 async fn handle_mcp_request(Json(payload): Json<serde_json::Value>) -> Json<serde_json::Value> {
     let method = payload.get("method").and_then(|m| m.as_str()).unwrap_or("");
     let id = payload.get("id").unwrap_or(&serde_json::Value::Null);
@@ -62,76 +90,40 @@ async fn handle_mcp_request(Json(payload): Json<serde_json::Value>) -> Json<serd
     
     match method {
         "initialize" => {
-            Json(serde_json::json!({
-                "jsonrpc": "2.0",
-                "id": id,
-                "result": {
-                    "protocolVersion": "2024-11-05",
-                    "capabilities": {
-                        "tools": {},
-                        "resources": {},
-                        "prompts": {}
-                    },
-                    "serverInfo": {
-                        "name": "keipes-ai-mcp",
-                        "version": "0.1.0"
-                    }
+            let result = serde_json::json!({
+                "protocolVersion": "2024-11-05",
+                "capabilities": {
+                    "tools": {},
+                    "resources": {},
+                    "prompts": {}
+                },
+                "serverInfo": {
+                    "name": "keipes-ai-mcp",
+                    "version": "0.1.0"
                 }
-            }))
+            });
+            jsonrpc_result(id, result)
         },
         "tools/list" => {
             let tools_result = tool_handler.list_tools(None).await;
-            Json(serde_json::json!({
-                "jsonrpc": "2.0",
-                "id": id,
-                "result": tools_result
-            }))
+            jsonrpc_result(id, serde_json::to_value(tools_result).unwrap())
         },
         "tools/call" => {
             if let Some(params) = payload.get("params") {
                 if let Ok(call_request) = serde_json::from_value::<rmcp::model::CallToolRequestParam>(params.clone()) {
                     match tool_handler.call_tool(call_request).await {
-                        Ok(result) => Json(serde_json::json!({
-                            "jsonrpc": "2.0",
-                            "id": id,
-                            "result": result
-                        })),
-                        Err(error) => Json(serde_json::json!({
-                            "jsonrpc": "2.0",
-                            "id": id,
-                            "error": error
-                        }))
+                        Ok(result) => jsonrpc_result(id, serde_json::to_value(result).unwrap()),
+                        Err(error) => jsonrpc_error_with_data(id, error)
                     }
                 } else {
-                    Json(serde_json::json!({
-                        "jsonrpc": "2.0",
-                        "id": id,
-                        "error": {
-                            "code": -32602,
-                            "message": "Invalid request parameters"
-                        }
-                    }))
+                    jsonrpc_error(id, -32602, "Invalid request parameters")
                 }
             } else {
-                Json(serde_json::json!({
-                    "jsonrpc": "2.0",
-                    "id": id,
-                    "error": {
-                        "code": -32602,
-                        "message": "Invalid params"
-                    }
-                }))
+                jsonrpc_error(id, -32602, "Invalid params")
             }
         },
         _ => {
-            Json(serde_json::json!({
-                "jsonrpc": "2.0",
-                "id": id,
-                "error": {
-                    "code": -32601,
-                    "message": "Method not found"
-                }
-            }))
+            jsonrpc_error(id, -32601, "Method not found")
         }
     }
 }
