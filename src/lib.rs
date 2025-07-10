@@ -168,3 +168,170 @@ impl McpServer {
         }))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_mcp_server_creation() {
+        let config = ServerConfig {
+            bind_address: "127.0.0.1".to_string(),
+            port: 8000,
+            sse_path: "/sse".to_string(),
+            post_path: "/post".to_string(),
+        };
+
+        let server = McpServer::new(config.clone());
+        assert_eq!(server.config.bind_address, "127.0.0.1");
+        assert_eq!(server.config.port, 8000);
+        assert_eq!(server.server_info.protocol_version, "2024-11-05");
+        assert_eq!(server.server_info.server_info.name, "keipes-ai-mcp");
+        assert_eq!(server.server_info.server_info.version, "0.1.0");
+    }
+
+    #[test]
+    fn test_mcp_server_clone() {
+        let config = ServerConfig {
+            bind_address: "0.0.0.0".to_string(),
+            port: 9000,
+            sse_path: "/events".to_string(),
+            post_path: "/messages".to_string(),
+        };
+
+        let server = McpServer::new(config);
+        let cloned = server.clone();
+        assert_eq!(server.config.bind_address, cloned.config.bind_address);
+        assert_eq!(server.config.port, cloned.config.port);
+    }
+
+    #[test]
+    fn test_jsonrpc_result() {
+        let id = serde_json::Value::Number(serde_json::Number::from(1));
+        let result = serde_json::json!({"success": true});
+        
+        let response = McpServer::jsonrpc_result(&id, result);
+        let json = response.0;
+        
+        assert_eq!(json["jsonrpc"], "2.0");
+        assert_eq!(json["id"], 1);
+        assert_eq!(json["result"]["success"], true);
+    }
+
+    #[test]
+    fn test_jsonrpc_error() {
+        let id = serde_json::Value::Number(serde_json::Number::from(2));
+        
+        let response = McpServer::jsonrpc_error(&id, -32601, "Method not found");
+        let json = response.0;
+        
+        assert_eq!(json["jsonrpc"], "2.0");
+        assert_eq!(json["id"], 2);
+        assert_eq!(json["error"]["code"], -32601);
+        assert_eq!(json["error"]["message"], "Method not found");
+    }
+
+    #[test]
+    fn test_jsonrpc_error_with_data() {
+        let id = serde_json::Value::Number(serde_json::Number::from(3));
+        let error = rmcp::model::ErrorData {
+            code: rmcp::model::ErrorCode(-32602),
+            message: "Invalid params".into(),
+            data: None,
+        };
+        
+        let response = McpServer::jsonrpc_error_with_data(&id, error);
+        let json = response.0;
+        
+        assert_eq!(json["jsonrpc"], "2.0");
+        assert_eq!(json["id"], 3);
+        assert!(json["error"].is_object());
+    }
+
+    #[tokio::test]
+    async fn test_handle_mcp_request_initialize() {
+        let config = ServerConfig {
+            bind_address: "127.0.0.1".to_string(),
+            port: 8000,
+            sse_path: "/sse".to_string(),
+            post_path: "/post".to_string(),
+        };
+
+        let server = McpServer::new(config);
+        let request = serde_json::json!({
+            "jsonrpc": "2.0",
+            "method": "initialize",
+            "id": 1
+        });
+
+        let response = server.handle_mcp_request(Json(request)).await;
+        let json = response.0;
+        
+        assert_eq!(json["jsonrpc"], "2.0");
+        assert_eq!(json["id"], 1);
+        assert!(json["result"]["protocolVersion"].is_string());
+    }
+
+    #[tokio::test]
+    async fn test_handle_mcp_request_unknown_method() {
+        let config = ServerConfig {
+            bind_address: "127.0.0.1".to_string(),
+            port: 8000,
+            sse_path: "/sse".to_string(),
+            post_path: "/post".to_string(),
+        };
+
+        let server = McpServer::new(config);
+        let request = serde_json::json!({
+            "jsonrpc": "2.0",
+            "method": "unknown_method",
+            "id": 1
+        });
+
+        let response = server.handle_mcp_request(Json(request)).await;
+        let json = response.0;
+        
+        assert_eq!(json["jsonrpc"], "2.0");
+        assert_eq!(json["id"], 1);
+        assert_eq!(json["error"]["code"], -32601);
+        assert_eq!(json["error"]["message"], "Method not found");
+    }
+
+    #[tokio::test]
+    async fn test_handle_mcp_request_tools_list() {
+        let config = ServerConfig {
+            bind_address: "127.0.0.1".to_string(),
+            port: 8000,
+            sse_path: "/sse".to_string(),
+            post_path: "/post".to_string(),
+        };
+
+        let server = McpServer::new(config);
+        let request = serde_json::json!({
+            "jsonrpc": "2.0",
+            "method": "tools/list",
+            "id": 1
+        });
+
+        let response = server.handle_mcp_request(Json(request)).await;
+        let json = response.0;
+        
+        assert_eq!(json["jsonrpc"], "2.0");
+        assert_eq!(json["id"], 1);
+        assert!(json["result"]["tools"].is_array());
+    }
+
+    #[test]
+    fn test_server_shutdown() {
+        let config = ServerConfig {
+            bind_address: "127.0.0.1".to_string(),
+            port: 8000,
+            sse_path: "/sse".to_string(),
+            post_path: "/post".to_string(),
+        };
+
+        let server = McpServer::new(config);
+        // Shutdown should not panic
+        server.shutdown();
+    }
+}

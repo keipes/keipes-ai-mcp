@@ -279,6 +279,97 @@ impl ResourceHandler {
 mod tests {
     use super::*;
 
+    #[test]
+    fn test_example_resource_properties() {
+        let resource = ExampleResource;
+        assert_eq!(resource.uri(), "memory://example");
+        assert_eq!(resource.name(), "Example Resource");
+        assert_eq!(resource.description(), Some("An example in-memory resource"));
+        assert_eq!(resource.mime_type(), Some("text/plain"));
+        assert_eq!(resource.size(), None);
+    }
+
+    #[tokio::test]
+    async fn test_example_resource_read() {
+        let resource = ExampleResource;
+        let result = resource.read().await;
+        assert!(result.is_ok());
+        let contents = result.unwrap();
+        assert_eq!(contents.len(), 1);
+    }
+
+    #[test]
+    fn test_template_resource_properties() {
+        let resource = TemplateResource;
+        assert_eq!(resource.uri(), "template://greeting");
+        assert_eq!(resource.name(), "Greeting Template");
+        assert_eq!(resource.description(), Some("A template for greeting messages"));
+        assert_eq!(resource.mime_type(), Some("text/template"));
+        assert_eq!(resource.size(), Some(256));
+    }
+
+    #[tokio::test]
+    async fn test_template_resource_read() {
+        let resource = TemplateResource;
+        let result = resource.read().await;
+        assert!(result.is_ok());
+        let contents = result.unwrap();
+        assert_eq!(contents.len(), 1);
+    }
+
+    #[test]
+    fn test_code_template_resource_properties() {
+        let resource = CodeTemplateResource;
+        assert_eq!(resource.uri(), "template://rust-function");
+        assert_eq!(resource.name(), "Rust Function Template");
+        assert_eq!(resource.description(), Some("A template for creating Rust functions"));
+        assert_eq!(resource.mime_type(), Some("text/rust"));
+        assert_eq!(resource.size(), Some(512));
+    }
+
+    #[tokio::test]
+    async fn test_code_template_resource_read() {
+        let resource = CodeTemplateResource;
+        let result = resource.read().await;
+        assert!(result.is_ok());
+        let contents = result.unwrap();
+        assert_eq!(contents.len(), 1);
+    }
+
+    #[test]
+    fn test_example_resource_template_properties() {
+        let template = ExampleResourceTemplate;
+        assert_eq!(template.uri_template(), "memory://items/{id}");
+        assert_eq!(template.name(), "Item Resource");
+        assert_eq!(template.description(), Some("A template for accessing items by ID"));
+        assert_eq!(template.mime_type(), Some("application/json"));
+    }
+
+    #[test]
+    fn test_resource_handler_new() {
+        let handler = ResourceHandler::new();
+        assert_eq!(handler.resources.len(), 3);
+        assert_eq!(handler.resource_templates.len(), 1);
+    }
+
+    #[test]
+    fn test_resource_handler_capabilities() {
+        let handler = ResourceHandler::new();
+        let capabilities = handler.capabilities();
+        assert_eq!(capabilities.len(), 3);
+        assert!(capabilities.contains_key("memory://example"));
+        assert!(capabilities.contains_key("template://greeting"));
+        assert!(capabilities.contains_key("template://rust-function"));
+    }
+
+    #[test]
+    fn test_resource_handler_clone() {
+        let handler = ResourceHandler::new();
+        let cloned = handler.clone();
+        assert_eq!(handler.resources.len(), cloned.resources.len());
+        assert_eq!(handler.resource_templates.len(), cloned.resource_templates.len());
+    }
+
     #[tokio::test]
     async fn test_list_resources() {
         let handler = ResourceHandler::new();
