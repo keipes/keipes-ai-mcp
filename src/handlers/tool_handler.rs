@@ -1,9 +1,10 @@
+use super::bf2042_tools::WeaponsByCategoryTool;
 use rmcp::model::*;
-use serde::{Serialize, Deserialize};
-use std::sync::Arc;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::future::Future;
 use std::pin::Pin;
+use std::sync::Arc;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct EchoRequest {
@@ -14,7 +15,10 @@ pub trait ToolTrait {
     fn name(&self) -> &str;
     fn description(&self) -> &str;
     fn input_schema(&self) -> serde_json::Value;
-    fn execute(&self, arguments: Option<serde_json::Map<String, serde_json::Value>>) -> Pin<Box<dyn Future<Output = Result<CallToolResult, ErrorData>> + Send + '_>>;
+    fn execute(
+        &self,
+        arguments: Option<serde_json::Map<String, serde_json::Value>>,
+    ) -> Pin<Box<dyn Future<Output = Result<CallToolResult, ErrorData>> + Send + '_>>;
 }
 
 pub struct EchoTool;
@@ -41,7 +45,10 @@ impl ToolTrait for EchoTool {
         })
     }
 
-    fn execute(&self, arguments: Option<serde_json::Map<String, serde_json::Value>>) -> Pin<Box<dyn Future<Output = Result<CallToolResult, ErrorData>> + Send + '_>> {
+    fn execute(
+        &self,
+        arguments: Option<serde_json::Map<String, serde_json::Value>>,
+    ) -> Pin<Box<dyn Future<Output = Result<CallToolResult, ErrorData>> + Send + '_>> {
         Box::pin(async move {
             let text = arguments
                 .as_ref()
@@ -78,8 +85,24 @@ impl ToolHandler {
         let mut tools: HashMap<String, Arc<dyn ToolTrait + Send + Sync>> = HashMap::new();
         let echo_tool: Arc<dyn ToolTrait + Send + Sync> = Arc::new(EchoTool);
         tools.insert(echo_tool.name().to_string(), echo_tool);
-        
+
         Self { tools }
+    }
+
+    pub async fn new_with_bf2042() -> Result<Self, ErrorData> {
+        let mut tools: HashMap<String, Arc<dyn ToolTrait + Send + Sync>> = HashMap::new();
+
+        let echo_tool: Arc<dyn ToolTrait + Send + Sync> = Arc::new(EchoTool);
+        tools.insert(echo_tool.name().to_string(), echo_tool);
+
+        let weapons_by_category_tool: Arc<dyn ToolTrait + Send + Sync> =
+            Arc::new(WeaponsByCategoryTool::new().await?);
+        tools.insert(
+            weapons_by_category_tool.name().to_string(),
+            weapons_by_category_tool,
+        );
+
+        Ok(Self { tools })
     }
 
     pub fn capabilities(&self) -> HashMap<String, serde_json::Value> {
@@ -91,22 +114,27 @@ impl ToolHandler {
     }
 
     pub async fn list_tools(&self, _request: Option<PaginatedRequestParam>) -> ListToolsResult {
-        let tools = self.tools.values().map(|tool| {
-            Tool {
+        let tools = self
+            .tools
+            .values()
+            .map(|tool| Tool {
                 name: tool.name().to_string().into(),
                 description: Some(tool.description().to_string().into()),
                 input_schema: Arc::new(tool.input_schema().as_object().unwrap().clone()),
                 annotations: None,
-            }
-        }).collect();
-        
-        ListToolsResult { 
+            })
+            .collect();
+
+        ListToolsResult {
             tools,
             next_cursor: None,
         }
     }
 
-    pub async fn call_tool(&self, request: CallToolRequestParam) -> Result<CallToolResult, ErrorData> {
+    pub async fn call_tool(
+        &self,
+        request: CallToolRequestParam,
+    ) -> Result<CallToolResult, ErrorData> {
         let tool_name = request.name.to_string();
         if let Some(tool) = self.tools.get(&tool_name) {
             tool.execute(request.arguments).await
@@ -129,7 +157,7 @@ mod tests {
     async fn test_list_tools() {
         let handler = ToolHandler::new();
         let result = handler.list_tools(None).await;
-        
+
         assert_eq!(result.tools.len(), 1);
         assert_eq!(result.tools[0].name, "echo");
         assert!(result.tools[0].description.is_some());
@@ -139,22 +167,25 @@ mod tests {
     #[tokio::test]
     async fn test_echo_tool() {
         let handler = ToolHandler::new();
-        
+
         let mut args = serde_json::Map::new();
-        args.insert("text".to_string(), serde_json::Value::String("Hello, World!".to_string()));
-        
+        args.insert(
+            "text".to_string(),
+            serde_json::Value::String("Hello, World!".to_string()),
+        );
+
         let request = CallToolRequestParam {
             name: "echo".into(),
             arguments: Some(args),
         };
-        
+
         let result = handler.call_tool(request).await;
         assert!(result.is_ok());
-        
+
         let response = result.unwrap();
         assert_eq!(response.is_error, Some(false));
         assert_eq!(response.content.len(), 1);
-        
+
         // The content should be text content with "Hello, World!"
         // We'll just verify it's not empty for now since the exact structure may vary
         assert!(!response.content.is_empty());
@@ -163,18 +194,21 @@ mod tests {
     #[tokio::test]
     async fn test_call_tool() {
         let handler = ToolHandler::new();
-        
+
         let mut args = serde_json::Map::new();
-        args.insert("text".to_string(), serde_json::Value::String("Hello MCP!".to_string()));
-        
+        args.insert(
+            "text".to_string(),
+            serde_json::Value::String("Hello MCP!".to_string()),
+        );
+
         let request = CallToolRequestParam {
             name: "echo".into(),
             arguments: Some(args),
         };
-        
+
         let result = handler.call_tool(request).await;
         assert!(result.is_ok());
-        
+
         let response = result.unwrap();
         assert_eq!(response.is_error, Some(false));
         assert_eq!(response.content.len(), 1);
