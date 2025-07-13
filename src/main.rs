@@ -9,7 +9,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         post_path: "/message".to_string(),
     };
 
-    let server = McpServer::new(config);
+    let server = McpServer::new(config).await;
     server.start().await?;
 
     Ok(())

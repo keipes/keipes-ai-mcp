@@ -81,28 +81,18 @@ impl Clone for ToolHandler {
 }
 
 impl ToolHandler {
-    pub fn new() -> Self {
+    pub async fn new() -> Self {
         let mut tools: HashMap<String, Arc<dyn ToolTrait + Send + Sync>> = HashMap::new();
         let echo_tool: Arc<dyn ToolTrait + Send + Sync> = Arc::new(EchoTool);
         tools.insert(echo_tool.name().to_string(), echo_tool);
+
+        // Try to initialize BF2042 tools, but don't fail if they're not available
+        if let Ok(weapons_by_category_tool) = WeaponsByCategoryTool::new().await {
+            let tool: Arc<dyn ToolTrait + Send + Sync> = Arc::new(weapons_by_category_tool);
+            tools.insert(tool.name().to_string(), tool);
+        }
 
         Self { tools }
-    }
-
-    pub async fn new_with_bf2042() -> Result<Self, ErrorData> {
-        let mut tools: HashMap<String, Arc<dyn ToolTrait + Send + Sync>> = HashMap::new();
-
-        let echo_tool: Arc<dyn ToolTrait + Send + Sync> = Arc::new(EchoTool);
-        tools.insert(echo_tool.name().to_string(), echo_tool);
-
-        let weapons_by_category_tool: Arc<dyn ToolTrait + Send + Sync> =
-            Arc::new(WeaponsByCategoryTool::new().await?);
-        tools.insert(
-            weapons_by_category_tool.name().to_string(),
-            weapons_by_category_tool,
-        );
-
-        Ok(Self { tools })
     }
 
     pub fn capabilities(&self) -> HashMap<String, serde_json::Value> {
@@ -155,10 +145,10 @@ mod tests {
 
     #[tokio::test]
     async fn test_list_tools() {
-        let handler = ToolHandler::new();
+        let handler = ToolHandler::new().await;
         let result = handler.list_tools(None).await;
 
-        assert_eq!(result.tools.len(), 1);
+        assert_eq!(result.tools.len(), 2);
         assert_eq!(result.tools[0].name, "echo");
         assert!(result.tools[0].description.is_some());
         assert!(result.next_cursor.is_none());
@@ -166,7 +156,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_echo_tool() {
-        let handler = ToolHandler::new();
+        let handler = ToolHandler::new().await;
 
         let mut args = serde_json::Map::new();
         args.insert(
@@ -193,7 +183,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_call_tool() {
-        let handler = ToolHandler::new();
+        let handler = ToolHandler::new().await;
 
         let mut args = serde_json::Map::new();
         args.insert(

@@ -3,8 +3,12 @@ pub mod types;
 
 use handlers::{PromptHandler, ToolHandler, ResourceHandler};
 use types::{ServerConfig, ServerInfo, McpCapabilities, ServerDetails};
-use axum::{Json, routing::{get, post}, Router};
+use axum::{Json, routing::{post, get}, Router};
+use rmcp::model::*;
 use tokio::net::TcpListener;
+use serde_json;
+
+use std::collections::HashMap;
 
 #[derive(Clone)]
 pub struct McpServer {
@@ -16,9 +20,9 @@ pub struct McpServer {
 }
 
 impl McpServer {
-    pub fn new(config: ServerConfig) -> Self {
+    pub async fn new(config: ServerConfig) -> Self {
         let prompt_handler = PromptHandler::new();
-        let tool_handler = ToolHandler::new();
+        let tool_handler = ToolHandler::new().await;
         let resource_handler = ResourceHandler::new();
         Self {
             server_info: ServerInfo {
@@ -173,8 +177,8 @@ impl McpServer {
 mod tests {
     use super::*;
 
-    #[test]
-    fn test_mcp_server_creation() {
+    #[tokio::test]
+    async fn test_mcp_server_creation() {
         let config = ServerConfig {
             bind_address: "127.0.0.1".to_string(),
             port: 8000,
@@ -182,7 +186,7 @@ mod tests {
             post_path: "/post".to_string(),
         };
 
-        let server = McpServer::new(config.clone());
+        let server = McpServer::new(config.clone()).await;
         assert_eq!(server.config.bind_address, "127.0.0.1");
         assert_eq!(server.config.port, 8000);
         assert_eq!(server.server_info.protocol_version, "2024-11-05");
@@ -190,8 +194,8 @@ mod tests {
         assert_eq!(server.server_info.server_info.version, "0.1.0");
     }
 
-    #[test]
-    fn test_mcp_server_clone() {
+    #[tokio::test]
+    async fn test_mcp_server_clone() {
         let config = ServerConfig {
             bind_address: "0.0.0.0".to_string(),
             port: 9000,
@@ -199,7 +203,7 @@ mod tests {
             post_path: "/messages".to_string(),
         };
 
-        let server = McpServer::new(config);
+        let server = McpServer::new(config).await;
         let cloned = server.clone();
         assert_eq!(server.config.bind_address, cloned.config.bind_address);
         assert_eq!(server.config.port, cloned.config.port);
@@ -257,7 +261,7 @@ mod tests {
             post_path: "/post".to_string(),
         };
 
-        let server = McpServer::new(config);
+        let server = McpServer::new(config).await;
         let request = serde_json::json!({
             "jsonrpc": "2.0",
             "method": "initialize",
@@ -281,7 +285,7 @@ mod tests {
             post_path: "/post".to_string(),
         };
 
-        let server = McpServer::new(config);
+        let server = McpServer::new(config).await;
         let request = serde_json::json!({
             "jsonrpc": "2.0",
             "method": "unknown_method",
@@ -306,7 +310,7 @@ mod tests {
             post_path: "/post".to_string(),
         };
 
-        let server = McpServer::new(config);
+        let server = McpServer::new(config).await;
         let request = serde_json::json!({
             "jsonrpc": "2.0",
             "method": "tools/list",
@@ -321,8 +325,8 @@ mod tests {
         assert!(json["result"]["tools"].is_array());
     }
 
-    #[test]
-    fn test_server_shutdown() {
+    #[tokio::test]
+    async fn test_server_shutdown() {
         let config = ServerConfig {
             bind_address: "127.0.0.1".to_string(),
             port: 8000,
@@ -330,7 +334,7 @@ mod tests {
             post_path: "/post".to_string(),
         };
 
-        let server = McpServer::new(config);
+        let server = McpServer::new(config).await;
         // Shutdown should not panic
         server.shutdown();
     }
