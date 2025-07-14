@@ -21,8 +21,8 @@ services:
   keipes-ai-mcp:
     build: .
     container_name: keipes-mcp-server
-    ports:
-      - "8000:80"
+    expose:
+      - "80"
     depends_on:
       postgres:
         condition: service_healthy
@@ -30,5 +30,31 @@ services:
       DATABASE_URL: postgresql://keipes:password@postgres:5432/keipes_mcp
     restart: unless-stopped
 
+  nginx:
+    image: nginx:alpine
+    container_name: keipes-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - certbot_www:/var/www/certbot:ro
+      - certbot_ssl:/etc/letsencrypt:ro
+    depends_on:
+      - keipes-ai-mcp
+    restart: unless-stopped
+
+  certbot:
+    image: certbot/certbot
+    container_name: keipes-certbot
+    volumes:
+      - certbot_www:/var/www/certbot
+      - certbot_ssl:/etc/letsencrypt
+    command: certonly --webroot --webroot-path=/var/www/certbot --email keithpsmith@gmail.com --agree-tos --no-eff-email -d mcp-origin.driveways.lol
+    depends_on:
+      - nginx
+
 volumes:
   postgres_data:
+  certbot_www:
+  certbot_ssl:
