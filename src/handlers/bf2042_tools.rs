@@ -1,5 +1,5 @@
 use super::tool_handler::ToolTrait;
-use bf2042_stats::StatsClient;
+use bf2042_stats::{DatabaseConfig, StatsClient};
 use futures::TryStreamExt;
 use rmcp::model::*;
 use std::future::Future;
@@ -11,8 +11,13 @@ pub struct WeaponsByCategoryTool {
 }
 
 impl WeaponsByCategoryTool {
+
     pub async fn new() -> Result<Self, ErrorData> {
-        let stats_client = StatsClient::new().await.map_err(|e| ErrorData {
+        // postgresql://postgres@localhost:5432/postgres
+        // postgres://user:password@localhost/bf2042_stats
+        let config = DatabaseConfig::new("postgresql://postgres@localhost:5432/postgres".to_string())
+            .with_max_connections(10);
+        let stats_client = StatsClient::new(&config).await.map_err(|e| ErrorData {
             code: ErrorCode(-32603),
             message: format!("Failed to initialize BF2042 stats client: {}", e).into(),
             data: None,

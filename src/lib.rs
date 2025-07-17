@@ -6,12 +6,10 @@ use axum::{
     Json, Router,
 };
 use handlers::{PromptHandler, ResourceHandler, ToolHandler};
-use rmcp::model::*;
 use serde_json;
 use tokio::net::TcpListener;
 use types::{McpCapabilities, ServerConfig, ServerDetails, ServerInfo};
 
-use std::collections::HashMap;
 
 #[derive(Clone)]
 pub struct McpServer {
@@ -57,7 +55,7 @@ impl McpServer {
         let app = Router::new()
             .route(
                 "/mcp",
-                post({ move |payload| async move { server.handle_mcp_request(payload).await } }),
+                post(move |payload| async move { server.handle_mcp_request(payload).await }),
             )
             .route("/health", get(|| async { "OK" }));
 
