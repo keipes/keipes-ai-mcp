@@ -87,10 +87,9 @@ impl ToolHandler {
         tools.insert(echo_tool.name().to_string(), echo_tool);
 
         // Try to initialize BF2042 tools, but don't fail if they're not available
-        if let Ok(weapons_by_category_tool) = WeaponsByCategoryTool::new().await {
-            let tool: Arc<dyn ToolTrait + Send + Sync> = Arc::new(weapons_by_category_tool);
-            tools.insert(tool.name().to_string(), tool);
-        }
+        let weapons_by_category_tool = WeaponsByCategoryTool::new();
+        let tool: Arc<dyn ToolTrait + Send + Sync> = Arc::new(weapons_by_category_tool);
+        tools.insert(tool.name().to_string(), tool);
 
         Self { tools }
     }

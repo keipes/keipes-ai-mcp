@@ -7,25 +7,31 @@ use std::pin::Pin;
 use std::sync::Arc;
 
 pub struct WeaponsByCategoryTool {
-    stats_client: Arc<StatsClient>,
+    stats_client: Arc<std::sync::Mutex<Option<Arc<StatsClient>>>>,
+    ready: Arc<std::sync::atomic::AtomicBool>,
 }
 
 impl WeaponsByCategoryTool {
-
-    pub async fn new() -> Result<Self, ErrorData> {
-        // postgresql://postgres@localhost:5432/postgres
-        // postgres://user:password@localhost/bf2042_stats
-        let config = DatabaseConfig::new("postgresql://postgres@localhost:5432/postgres".to_string())
-            .with_max_connections(10);
-        let stats_client = StatsClient::new(&config).await.map_err(|e| ErrorData {
-            code: ErrorCode(-32603),
-            message: format!("Failed to initialize BF2042 stats client: {}", e).into(),
-            data: None,
-        })?;
-
-        Ok(Self {
-            stats_client: Arc::new(stats_client),
-        })
+    pub fn new() -> Self {
+        let stats_client = Arc::new(std::sync::Mutex::new(None));
+        let ready = Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let stats_client_clone = Arc::clone(&stats_client);
+        let ready_clone = Arc::clone(&ready);
+        // Spawn background task to initialize the client
+        tokio::spawn(async move {
+            let config = DatabaseConfig::new("postgresql://postgres@localhost:5432/postgres".to_string())
+                .with_max_connections(10);
+            match StatsClient::new(&config).await {
+                Ok(client) => {
+                    *stats_client_clone.lock().unwrap() = Some(Arc::new(client));
+                    ready_clone.store(true, std::sync::atomic::Ordering::SeqCst);
+                }
+                Err(_) => {
+                    // Remain not ready
+                }
+            }
+        });
+        Self { stats_client, ready }
     }
 }
 
@@ -56,14 +62,20 @@ impl ToolTrait for WeaponsByCategoryTool {
         arguments: Option<serde_json::Map<String, serde_json::Value>>,
     ) -> Pin<Box<dyn Future<Output = Result<CallToolResult, ErrorData>> + Send + '_>> {
         let stats_client = Arc::clone(&self.stats_client);
-
+        let ready = Arc::clone(&self.ready);
         Box::pin(async move {
+            if !ready.load(std::sync::atomic::Ordering::SeqCst) {
+                return Err(ErrorData {
+                    code: ErrorCode(-32603),
+                    message: "BF2042 stats client is still initializing. Try again later.".into(),
+                    data: None,
+                });
+            }
             let args = arguments.ok_or_else(|| ErrorData {
                 code: ErrorCode(-32602),
                 message: "Arguments required".into(),
                 data: None,
             })?;
-
             let category = args
                 .get("category")
                 .and_then(|v| v.as_str())
@@ -72,8 +84,15 @@ impl ToolTrait for WeaponsByCategoryTool {
                     message: "Category parameter required".into(),
                     data: None,
                 })?;
-
-            let weapons: Vec<_> = stats_client
+            let client = {
+                let client_guard = stats_client.lock().unwrap();
+                client_guard.as_ref().ok_or_else(|| ErrorData {
+                    code: ErrorCode(-32603),
+                    message: "BF2042 stats client is not available.".into(),
+                    data: None,
+                })?.clone()
+            };
+            let weapons: Vec<_> = client
                 .weapons_by_category(category)
                 .try_collect()
                 .await
@@ -82,10 +101,8 @@ impl ToolTrait for WeaponsByCategoryTool {
                     message: format!("Failed to get weapons: {}", e).into(),
                     data: None,
                 })?;
-
             let result_text = serde_json::to_string_pretty(&weapons)
                 .unwrap_or_else(|_| "Failed to serialize weapons".to_string());
-
             Ok(CallToolResult {
                 content: vec![Content::text(&result_text)],
                 is_error: Some(false),
