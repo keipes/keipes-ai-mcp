@@ -6,7 +6,7 @@ docker ps -aq --filter ancestor=keipes-ai-mcp | xargs -r docker rm
 docker rm -f keipes-ai-mcp 2>/dev/null || true
 
 # Build and run new container
-docker build -t keipes-ai-mcp . && docker run -d -p 8000:80 --name keipes-ai-mcp keipes-ai-mcp
+docker build -t keipes-ai-mcp . && docker run -d -p 80:80 --name keipes-ai-mcp keipes-ai-mcp
 
 echo "Container started. To view logs, run:"
 echo "docker logs -f keipes-ai-mcp"
