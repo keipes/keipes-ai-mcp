@@ -52,7 +52,7 @@ impl ToolTrait for WeaponsByCategoryTool {
     }
 
     fn description(&self) -> &str {
-        "Get all weapons in a specific category (assault_rifle, sniper_rifle, etc.)"
+        "Get all weapons in a specific category [Sidearms|SMG|Assault Rifles|LMG|DMR|Bolt Action|Shotgun/Utility]"
     }
 
     fn input_schema(&self) -> serde_json::Value {
@@ -61,7 +61,7 @@ impl ToolTrait for WeaponsByCategoryTool {
             "properties": {
                 "category": {
                     "type": "string",
-                    "description": "Weapon category (e.g., assault_rifle, sniper_rifle, lmg, smg, shotgun, marksman_rifle)"
+                    "description": "Weapon category [Sidearms|SMG|Assault Rifles|LMG|DMR|Bolt Action|Shotgun/Utility]",
                 }
             },
             "required": ["category"]
