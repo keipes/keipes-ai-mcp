@@ -5,8 +5,6 @@ async fn test_server_startup() {
     let config = keipes_ai_mcp::types::ServerConfig {
         bind_address: "127.0.0.1".to_string(),
         port: 8001,
-        sse_path: "/sse".to_string(),
-        post_path: "/message".to_string(),
     };
 
     let server = McpServer::new(config).await;
@@ -68,8 +66,6 @@ async fn test_list_resources() {
     let config = keipes_ai_mcp::types::ServerConfig {
         bind_address: "127.0.0.1".to_string(),
         port: 8002,
-        sse_path: "/sse".to_string(),
-        post_path: "/message".to_string(),
     };
 
     let server = McpServer::new(config).await;
@@ -139,8 +135,6 @@ async fn test_list_prompts() {
     let config = keipes_ai_mcp::types::ServerConfig {
         bind_address: "127.0.0.1".to_string(),
         port: 8003,
-        sse_path: "/sse".to_string(),
-        post_path: "/message".to_string(),
     };
 
     let server = McpServer::new(config).await;
@@ -205,8 +199,6 @@ async fn test_list_resource_templates() {
     let config = keipes_ai_mcp::types::ServerConfig {
         bind_address: "127.0.0.1".to_string(),
         port: 8004,
-        sse_path: "/sse".to_string(),
-        post_path: "/message".to_string(),
     };
 
     let server = McpServer::new(config).await;
