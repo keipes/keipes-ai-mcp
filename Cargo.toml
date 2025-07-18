@@ -17,6 +17,8 @@ serde_json = "1.0"
 axum = "0.8"
 bf2042_stats = { git = "https://github.com/keipes/keipes-ai-mcp-2042" }
 futures = "0.3"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 [lib]
 name = "keipes_ai_mcp"

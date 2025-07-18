@@ -13,24 +13,35 @@ pub struct WeaponsByCategoryTool {
 
 impl WeaponsByCategoryTool {
     pub fn new() -> Self {
+        eprintln!("Creating new WeaponsByCategoryTool instance");
         let stats_client = Arc::new(std::sync::Mutex::new(None));
         let ready = Arc::new(std::sync::atomic::AtomicBool::new(false));
         let stats_client_clone = Arc::clone(&stats_client);
         let ready_clone = Arc::clone(&ready);
         // Spawn background task to initialize the client
         tokio::spawn(async move {
-            let config = DatabaseConfig::new("postgresql://postgres@localhost:5432/postgres".to_string())
+            eprintln!("Starting BF2042 stats client initialization...");
+            let database_url = std::env::var("DATABASE_URL")
+                .unwrap();
+            eprintln!("Using database URL: {}", database_url);
+            let config = DatabaseConfig::new(database_url)
                 .with_max_connections(10);
+            eprintln!("Created database config, attempting connection...");
             match StatsClient::new(&config).await {
                 Ok(client) => {
+                    eprintln!("BF2042 stats client initialized successfully");
                     *stats_client_clone.lock().unwrap() = Some(Arc::new(client));
                     ready_clone.store(true, std::sync::atomic::Ordering::SeqCst);
+                    eprintln!("BF2042 stats client marked as ready");
                 }
-                Err(_) => {
+                Err(e) => {
+                    eprintln!("Failed to initialize BF2042 stats client: {}", e);
+                    eprintln!("Error details: {:?}", e);
                     // Remain not ready
                 }
             }
         });
+        eprintln!("WeaponsByCategoryTool created, background initialization started");
         Self { stats_client, ready }
     }
 }
