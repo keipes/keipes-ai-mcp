@@ -34,6 +34,7 @@ pub struct McpServer {
 struct SessionData {
     id: String,
     created_at: std::time::Instant,
+    protocol_version: String,
 }
 
 #[derive(Deserialize)]
@@ -49,7 +50,7 @@ impl McpServer {
         let resource_handler = ResourceHandler::new();
         Self {
             server_info: ServerInfo {
-                protocol_version: "2025-06-18".to_string(),
+                protocol_version: "2025-03-26".to_string(),
                 capabilities: McpCapabilities {
                     tools: tool_handler.capabilities(),
                     resources: resource_handler.capabilities(),
@@ -58,7 +59,9 @@ impl McpServer {
                 server_info: ServerDetails {
                     name: "keipes-ai-mcp".to_string(),
                     version: "0.1.0".to_string(),
+                    title: Some("Keipes AI MCP Server".to_string()),
                 },
+                instructions: Some("This MCP server provides tools for BF2042 weapons data, echo functionality, and resource/prompt management. Use the tools/list method to see available tools.".to_string()),
             },
             config,
             prompt_handler: prompt_handler,
@@ -128,7 +131,7 @@ impl McpServer {
     fn validate_protocol_version(headers: &HeaderMap) -> Result<(), StatusCode> {
         if let Some(version) = headers.get("MCP-Protocol-Version") {
             let version_str = version.to_str().map_err(|_| StatusCode::BAD_REQUEST)?;
-            if version_str != "2025-06-18" && version_str != "2024-11-05" {
+            if version_str != "2025-06-18" && version_str != "2025-03-26" {
                 return Err(StatusCode::BAD_REQUEST);
             }
         }
@@ -139,6 +142,10 @@ impl McpServer {
     async fn log_requests(req: Request, next: Next) -> Response {
         let method = req.method().clone();
         let uri = req.uri().clone();
+        if uri.path() == "/health" {
+            // do not log health checks
+            return next.run(req).await;
+        }
         let headers = req.headers().clone();
         let origin = headers.get("Origin").and_then(|h| h.to_str().ok()).unwrap_or("none");
         
@@ -199,14 +206,47 @@ impl McpServer {
 
         match method {
             "initialize" => {
-                info!("Handling initialize request");
+                info!("Initialize request payload: {}", serde_json::to_string_pretty(&payload).unwrap_or_else(|_| "invalid json".to_string()));
+                
+                // Log client info if present
+                if let Some(params) = payload.get("params") {
+                    if let Some(client_info) = params.get("clientInfo") {
+                        info!("Client info: {}", serde_json::to_string_pretty(client_info).unwrap_or_else(|_| "invalid".to_string()));
+                    }
+                    if let Some(protocol_version) = params.get("protocolVersion") {
+                        info!("Client protocol version: {}", protocol_version);
+                    }
+                    if let Some(capabilities) = params.get("capabilities") {
+                        info!("Client capabilities: {}", serde_json::to_string_pretty(capabilities).unwrap_or_else(|_| "invalid".to_string()));
+                    }
+                }
+                
                 let mut response_headers = HeaderMap::new();
+                
+                // Extract client's requested protocol version
+                let client_protocol_version = payload
+                    .get("params")
+                    .and_then(|p| p.get("protocolVersion"))
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("2025-06-18"); // Default to latest if not specified
+                
+                // Validate we support the requested version
+                let supported_versions = ["2025-06-18", "2025-03-26", "2024-11-05"];
+                let negotiated_version = if supported_versions.contains(&client_protocol_version) {
+                    client_protocol_version
+                } else {
+                    // If we don't support their version, respond with our latest
+                    "2025-06-18"
+                };
+                
+                info!("Protocol version negotiation: client requested '{}', server responding with '{}'", client_protocol_version, negotiated_version);
                 
                 // Create new session for initialize
                 let new_session_id = Uuid::new_v4().to_string();
                 let session_data = SessionData {
                     id: new_session_id.clone(),
                     created_at: std::time::Instant::now(),
+                    protocol_version: negotiated_version.to_string(),
                 };
                 
                 server.sessions.write().await.insert(new_session_id.clone(), session_data);
@@ -215,14 +255,47 @@ impl McpServer {
                     HeaderValue::from_str(&new_session_id).unwrap(),
                 );
 
-                info!("Created new session: {}", new_session_id);
+                info!("Created new session: {} with protocol version: {}", new_session_id, negotiated_version);
 
-                let result = serde_json::json!(server.server_info);
+                // Create response with negotiated protocol version
+                let mut server_response = server.server_info.clone();
+                server_response.protocol_version = negotiated_version.to_string();
+                
+                let result = serde_json::json!(server_response);
+                // info!("=== SERVER RESPONSE ===");
+                // info!("Server info response: {}", serde_json::to_string_pretty(&result).unwrap_or_else(|_| "invalid json".to_string()));
+                
                 let response = Self::jsonrpc_result_value(id, result);
+                info!("Complete JSON-RPC response: {}", serde_json::to_string_pretty(&response).unwrap_or_else(|_| "invalid json".to_string()));
                 
                 let mut resp = Json(response).into_response();
                 resp.headers_mut().extend(response_headers);
                 Ok(resp)
+            }
+            "notifications/initialized" => {
+                info!("Client has completed initialization and is ready for normal operations");
+                
+                // Validate session exists
+                if let Some(session_id) = &session_id {
+                    let sessions = server.sessions.read().await;
+                    if sessions.contains_key(session_id) {
+                        info!("Session {} marked as initialized", session_id);
+                        // Could add an "initialized" flag to SessionData if needed
+                    } else {
+                        error!("Session not found for initialized notification: {}", session_id);
+                        return Err(StatusCode::NOT_FOUND);
+                    }
+                } else {
+                    error!("Missing session ID for initialized notification");
+                    return Err(StatusCode::BAD_REQUEST);
+                }
+                
+                // Notifications don't require a response, return 204 No Content
+                Ok(axum::http::Response::builder()
+                    .status(StatusCode::NO_CONTENT)
+                    .body(axum::body::Body::empty())
+                    .unwrap()
+                    .into_response())
             }
             "tools/list" => {
                 info!("Handling tools/list request");

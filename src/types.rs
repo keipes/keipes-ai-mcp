@@ -8,6 +8,8 @@ pub struct ServerInfo {
     pub capabilities: McpCapabilities,
     #[serde(rename = "serverInfo")]
     pub server_info: ServerDetails,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub instructions: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -21,6 +23,8 @@ pub struct McpCapabilities {
 pub struct ServerDetails {
     pub name: String,
     pub version: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub title: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
