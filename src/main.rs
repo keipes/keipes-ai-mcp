@@ -4,7 +4,11 @@ use keipes_ai_mcp::{types::ServerConfig, McpServer};
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize tracing to capture logs from bf2042_stats and other dependencies
     tracing_subscriber::fmt()
-        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env().add_directive("bf2042_stats=debug".parse()?))
+        .with_env_filter(
+            tracing_subscriber::EnvFilter::from_default_env()
+                .add_directive("keipes_ai_mcp=info".parse()?)
+                .add_directive("bf2042_stats=debug".parse()?)
+        )
         .init();
 
     eprintln!("Starting MCP server with tracing enabled");
