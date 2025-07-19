@@ -1,10 +1,37 @@
-FROM rust:latest AS builder
+FROM --platform=$BUILDPLATFORM rust:latest AS builder
+
+ARG TARGETOS
+ARG TARGETARCH
+ARG BUILDPLATFORM
+ARG TARGETPLATFORM
+
+RUN echo "Building for $TARGETOS/$TARGETARCH on $BUILDPLATFORM/$TARGETPLATFORM"
 
 WORKDIR /app
 COPY Cargo.toml Cargo.lock ./
 COPY src ./src
 
-RUN cargo build --release
+# RUN cargo build --release
+
+# Install cross-compilation tools
+RUN apt-get update && apt-get install -y gcc-aarch64-linux-gnu && rm -rf /var/lib/apt/lists/* && rustup target add aarch64-unknown-linux-gnu
+
+
+# cross-compile if possible
+RUN if [ "$TARGETARCH" = "arm64" ]; then \
+        export CC_aarch64_unknown_linux_gnu=aarch64-linux-gnu-gcc && \
+        export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc && \
+        RUST_TARGET=aarch64-unknown-linux-gnu; \
+    elif [ "$TARGETARCH" = "amd64" ]; then \
+        RUST_TARGET=x86_64-unknown-linux-gnu; \
+    else \
+        echo "Unsupported architecture: $TARGETARCH" && \
+        exit 1; \
+    fi && \
+    cargo build --release --target=${RUST_TARGET} && \
+    cp target/${RUST_TARGET}/release/main keipes-ai-mcp && \
+    chmod +x keipes-ai-mcp
+
 
 FROM debian:bookworm-slim
 
@@ -25,7 +52,7 @@ RUN /etc/init.d/postgresql start && \
 USER root
 
 WORKDIR /app
-COPY --from=builder /app/target/release/main ./keipes-ai-mcp
+COPY --from=builder /app/keipes-ai-mcp ./keipes-ai-mcp
 
 # Create startup script
 RUN echo '#!/bin/bash\n\
