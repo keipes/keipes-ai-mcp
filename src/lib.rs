@@ -1,4 +1,5 @@
 pub mod handlers;
+pub mod server;
 pub mod types;
 
 use axum::{
@@ -17,7 +18,6 @@ use tokio::net::TcpListener;
 use tracing::{error, info};
 use types::{McpCapabilities, ServerConfig, ServerDetails, ServerInfo};
 use uuid::Uuid;
-
 
 #[derive(Clone)]
 pub struct McpServer {
@@ -147,14 +147,22 @@ impl McpServer {
             return next.run(req).await;
         }
         let headers = req.headers().clone();
-        let origin = headers.get("Origin").and_then(|h| h.to_str().ok()).unwrap_or("none");
-        
+        let origin = headers
+            .get("Origin")
+            .and_then(|h| h.to_str().ok())
+            .unwrap_or("none");
+
         info!("Request - {} {} origin: {}", method, uri, origin);
-        
+
         let response = next.run(req).await;
-        
-        info!("Response - {} {} status: {}", method, uri, response.status());
-        
+
+        info!(
+            "Response - {} {} status: {}",
+            method,
+            uri,
+            response.status()
+        );
+
         response
     }
 
@@ -164,26 +172,44 @@ impl McpServer {
         headers: HeaderMap,
         Json(payload): Json<serde_json::Value>,
     ) -> Result<Response, StatusCode> {
-        let method = payload.get("method").and_then(|m| m.as_str()).unwrap_or("unknown");
+        let method = payload
+            .get("method")
+            .and_then(|m| m.as_str())
+            .unwrap_or("unknown");
         let id = payload.get("id");
-        let origin = headers.get("Origin").and_then(|h| h.to_str().ok()).unwrap_or("none");
-        
-        info!("Received POST request: method={}, id={:?}, origin={}", method, id, origin);
+        let origin = headers
+            .get("Origin")
+            .and_then(|h| h.to_str().ok())
+            .unwrap_or("none");
+
+        info!(
+            "Received POST request: method={}, id={:?}, origin={}",
+            method, id, origin
+        );
 
         // Validate origin and protocol version
         if let Err(status) = Self::validate_origin(&headers) {
             error!("Origin validation failed for {}: {:?}", origin, status);
             return Err(status);
         }
-        
+
         if let Err(status) = Self::validate_protocol_version(&headers) {
-            let version = headers.get("MCP-Protocol-Version").and_then(|h| h.to_str().ok()).unwrap_or("none");
-            error!("Protocol version validation failed for {}: {:?}", version, status);
+            let version = headers
+                .get("MCP-Protocol-Version")
+                .and_then(|h| h.to_str().ok())
+                .unwrap_or("none");
+            error!(
+                "Protocol version validation failed for {}: {:?}",
+                version, status
+            );
             return Err(status);
         }
 
         // Check Accept header
-        let accept = headers.get("Accept").and_then(|h| h.to_str().ok()).unwrap_or("");
+        let accept = headers
+            .get("Accept")
+            .and_then(|h| h.to_str().ok())
+            .unwrap_or("");
         let supports_sse = accept.contains("text/event-stream");
         let supports_json = accept.contains("application/json");
 
@@ -192,7 +218,10 @@ impl McpServer {
             return Err(StatusCode::BAD_REQUEST);
         }
 
-        info!("Accept header valid: supports_sse={}, supports_json={}", supports_sse, supports_json);
+        info!(
+            "Accept header valid: supports_sse={}, supports_json={}",
+            supports_sse, supports_json
+        );
 
         let id = payload.get("id").unwrap_or(&serde_json::Value::Null);
 
@@ -202,34 +231,49 @@ impl McpServer {
             .and_then(|h| h.to_str().ok())
             .map(|s| s.to_string());
 
-        info!("Processing method: {}, session_id: {:?}", method, session_id);
+        info!(
+            "Processing method: {}, session_id: {:?}",
+            method, session_id
+        );
 
         match method {
             "initialize" => {
-                info!("Initialize request payload: {}", serde_json::to_string_pretty(&payload).unwrap_or_else(|_| "invalid json".to_string()));
-                
+                info!(
+                    "Initialize request payload: {}",
+                    serde_json::to_string_pretty(&payload)
+                        .unwrap_or_else(|_| "invalid json".to_string())
+                );
+
                 // Log client info if present
                 if let Some(params) = payload.get("params") {
                     if let Some(client_info) = params.get("clientInfo") {
-                        info!("Client info: {}", serde_json::to_string_pretty(client_info).unwrap_or_else(|_| "invalid".to_string()));
+                        info!(
+                            "Client info: {}",
+                            serde_json::to_string_pretty(client_info)
+                                .unwrap_or_else(|_| "invalid".to_string())
+                        );
                     }
                     if let Some(protocol_version) = params.get("protocolVersion") {
                         info!("Client protocol version: {}", protocol_version);
                     }
                     if let Some(capabilities) = params.get("capabilities") {
-                        info!("Client capabilities: {}", serde_json::to_string_pretty(capabilities).unwrap_or_else(|_| "invalid".to_string()));
+                        info!(
+                            "Client capabilities: {}",
+                            serde_json::to_string_pretty(capabilities)
+                                .unwrap_or_else(|_| "invalid".to_string())
+                        );
                     }
                 }
-                
+
                 let mut response_headers = HeaderMap::new();
-                
+
                 // Extract client's requested protocol version
                 let client_protocol_version = payload
                     .get("params")
                     .and_then(|p| p.get("protocolVersion"))
                     .and_then(|v| v.as_str())
                     .unwrap_or("2025-06-18"); // Default to latest if not specified
-                
+
                 // Validate we support the requested version
                 let supported_versions = ["2025-06-18", "2025-03-26", "2024-11-05"];
                 let negotiated_version = if supported_versions.contains(&client_protocol_version) {
@@ -238,9 +282,9 @@ impl McpServer {
                     // If we don't support their version, respond with our latest
                     "2025-06-18"
                 };
-                
+
                 info!("Protocol version negotiation: client requested '{}', server responding with '{}'", client_protocol_version, negotiated_version);
-                
+
                 // Create new session for initialize
                 let new_session_id = Uuid::new_v4().to_string();
                 let session_data = SessionData {
@@ -248,33 +292,44 @@ impl McpServer {
                     created_at: std::time::Instant::now(),
                     protocol_version: negotiated_version.to_string(),
                 };
-                
-                server.sessions.write().await.insert(new_session_id.clone(), session_data);
+
+                server
+                    .sessions
+                    .write()
+                    .await
+                    .insert(new_session_id.clone(), session_data);
                 response_headers.insert(
                     "Mcp-Session-Id",
                     HeaderValue::from_str(&new_session_id).unwrap(),
                 );
 
-                info!("Created new session: {} with protocol version: {}", new_session_id, negotiated_version);
+                info!(
+                    "Created new session: {} with protocol version: {}",
+                    new_session_id, negotiated_version
+                );
 
                 // Create response with negotiated protocol version
                 let mut server_response = server.server_info.clone();
                 server_response.protocol_version = negotiated_version.to_string();
-                
+
                 let result = serde_json::json!(server_response);
                 // info!("=== SERVER RESPONSE ===");
                 // info!("Server info response: {}", serde_json::to_string_pretty(&result).unwrap_or_else(|_| "invalid json".to_string()));
-                
+
                 let response = Self::jsonrpc_result_value(id, result);
-                info!("Complete JSON-RPC response: {}", serde_json::to_string_pretty(&response).unwrap_or_else(|_| "invalid json".to_string()));
-                
+                info!(
+                    "Complete JSON-RPC response: {}",
+                    serde_json::to_string_pretty(&response)
+                        .unwrap_or_else(|_| "invalid json".to_string())
+                );
+
                 let mut resp = Json(response).into_response();
                 resp.headers_mut().extend(response_headers);
                 Ok(resp)
             }
             "notifications/initialized" => {
                 info!("Client has completed initialization and is ready for normal operations");
-                
+
                 // Validate session exists
                 if let Some(session_id) = &session_id {
                     let sessions = server.sessions.read().await;
@@ -282,17 +337,20 @@ impl McpServer {
                         info!("Session {} marked as initialized", session_id);
                         // Could add an "initialized" flag to SessionData if needed
                     } else {
-                        error!("Session not found for initialized notification: {}", session_id);
+                        error!(
+                            "Session not found for initialized notification: {}",
+                            session_id
+                        );
                         return Err(StatusCode::NOT_FOUND);
                     }
                 } else {
                     error!("Missing session ID for initialized notification");
                     return Err(StatusCode::BAD_REQUEST);
                 }
-                
+
                 // Notifications don't require a response, return 204 No Content
                 Ok(axum::http::Response::builder()
-                    .status(StatusCode::NO_CONTENT)
+                    .status(StatusCode::ACCEPTED)
                     .body(axum::body::Body::empty())
                     .unwrap()
                     .into_response())
@@ -300,7 +358,8 @@ impl McpServer {
             "tools/list" => {
                 info!("Handling tools/list request");
                 let tools_result = server.tool_handler.list_tools(None).await;
-                let response = Self::jsonrpc_result_value(id, serde_json::to_value(tools_result).unwrap());
+                let response =
+                    Self::jsonrpc_result_value(id, serde_json::to_value(tools_result).unwrap());
                 Ok(Json(response).into_response())
             }
             "tools/call" => {
@@ -313,7 +372,10 @@ impl McpServer {
                         match server.tool_handler.call_tool(call_request).await {
                             Ok(result) => {
                                 info!("Tool call successful");
-                                let response = Self::jsonrpc_result_value(id, serde_json::to_value(result).unwrap());
+                                let response = Self::jsonrpc_result_value(
+                                    id,
+                                    serde_json::to_value(result).unwrap(),
+                                );
                                 Ok(Json(response).into_response())
                             }
                             Err(error) => {
@@ -324,7 +386,8 @@ impl McpServer {
                         }
                     } else {
                         error!("Invalid tool call parameters");
-                        let response = Self::jsonrpc_error_value(id, -32602, "Invalid request parameters");
+                        let response =
+                            Self::jsonrpc_error_value(id, -32602, "Invalid request parameters");
                         Ok(Json(response).into_response())
                     }
                 } else {
@@ -339,7 +402,8 @@ impl McpServer {
                     .get("params")
                     .and_then(|p| serde_json::from_value(p.clone()).ok());
                 let resources_result = server.resource_handler.list_resources(params).await;
-                let response = Self::jsonrpc_result_value(id, serde_json::to_value(resources_result).unwrap());
+                let response =
+                    Self::jsonrpc_result_value(id, serde_json::to_value(resources_result).unwrap());
                 Ok(Json(response).into_response())
             }
             "resources/read" => {
@@ -353,7 +417,10 @@ impl McpServer {
                         match server.resource_handler.read_resource(read_request).await {
                             Ok(result) => {
                                 info!("Resource read successful");
-                                let response = Self::jsonrpc_result_value(id, serde_json::to_value(result).unwrap());
+                                let response = Self::jsonrpc_result_value(
+                                    id,
+                                    serde_json::to_value(result).unwrap(),
+                                );
                                 Ok(Json(response).into_response())
                             }
                             Err(error) => {
@@ -364,7 +431,8 @@ impl McpServer {
                         }
                     } else {
                         error!("Invalid resource read parameters");
-                        let response = Self::jsonrpc_error_value(id, -32602, "Invalid request parameters");
+                        let response =
+                            Self::jsonrpc_error_value(id, -32602, "Invalid request parameters");
                         Ok(Json(response).into_response())
                     }
                 } else {
@@ -378,8 +446,12 @@ impl McpServer {
                 let params = payload
                     .get("params")
                     .and_then(|p| serde_json::from_value(p.clone()).ok());
-                let templates_result = server.resource_handler.list_resource_templates(params).await;
-                let response = Self::jsonrpc_result_value(id, serde_json::to_value(templates_result).unwrap());
+                let templates_result = server
+                    .resource_handler
+                    .list_resource_templates(params)
+                    .await;
+                let response =
+                    Self::jsonrpc_result_value(id, serde_json::to_value(templates_result).unwrap());
                 Ok(Json(response).into_response())
             }
             "prompts/list" => {
@@ -388,7 +460,8 @@ impl McpServer {
                     .get("params")
                     .and_then(|p| serde_json::from_value(p.clone()).ok());
                 let prompts_result = server.prompt_handler.list_prompts(params).await;
-                let response = Self::jsonrpc_result_value(id, serde_json::to_value(prompts_result).unwrap());
+                let response =
+                    Self::jsonrpc_result_value(id, serde_json::to_value(prompts_result).unwrap());
                 Ok(Json(response).into_response())
             }
             "prompts/get" => {
@@ -401,7 +474,10 @@ impl McpServer {
                         match server.prompt_handler.get_prompt(get_request).await {
                             Ok(result) => {
                                 info!("Prompt get successful");
-                                let response = Self::jsonrpc_result_value(id, serde_json::to_value(result).unwrap());
+                                let response = Self::jsonrpc_result_value(
+                                    id,
+                                    serde_json::to_value(result).unwrap(),
+                                );
                                 Ok(Json(response).into_response())
                             }
                             Err(error) => {
@@ -412,7 +488,8 @@ impl McpServer {
                         }
                     } else {
                         error!("Invalid prompt get parameters");
-                        let response = Self::jsonrpc_error_value(id, -32602, "Invalid request parameters");
+                        let response =
+                            Self::jsonrpc_error_value(id, -32602, "Invalid request parameters");
                         Ok(Json(response).into_response())
                     }
                 } else {
@@ -447,25 +524,56 @@ impl McpServer {
         headers: HeaderMap,
         _query: Query<SessionParams>,
     ) -> Result<Response, StatusCode> {
-        let origin = headers.get("Origin").and_then(|h| h.to_str().ok()).unwrap_or("none");
+        // log all headers
+        let mut header_log = String::new();
+        for (key, value) in headers.iter() {
+            let value_str = value.to_str().unwrap_or("invalid");
+            header_log.push_str(&format!("{}: {}\n", key, value_str));
+        }
+        info!("Received GET request with headers:\n{}", header_log);
+
+        // log session id if present
+        if let Some(session_id) = &_query.session_id {
+            info!("GET request session ID: {}", session_id);
+        }
+
+        let origin = headers
+            .get("Origin")
+            .and_then(|h| h.to_str().ok())
+            .unwrap_or("none");
         info!("Received GET request for SSE stream, origin={}", origin);
 
         // Validate origin and protocol version
         if let Err(status) = Self::validate_origin(&headers) {
-            error!("Origin validation failed for GET request from {}: {:?}", origin, status);
+            error!(
+                "Origin validation failed for GET request from {}: {:?}",
+                origin, status
+            );
             return Err(status);
         }
-        
+
         if let Err(status) = Self::validate_protocol_version(&headers) {
-            let version = headers.get("MCP-Protocol-Version").and_then(|h| h.to_str().ok()).unwrap_or("none");
-            error!("Protocol version validation failed for GET request with version {}: {:?}", version, status);
+            let version = headers
+                .get("MCP-Protocol-Version")
+                .and_then(|h| h.to_str().ok())
+                .unwrap_or("none");
+            error!(
+                "Protocol version validation failed for GET request with version {}: {:?}",
+                version, status
+            );
             return Err(status);
         }
 
         // Check Accept header for SSE support
-        let accept = headers.get("Accept").and_then(|h| h.to_str().ok()).unwrap_or("");
+        let accept = headers
+            .get("Accept")
+            .and_then(|h| h.to_str().ok())
+            .unwrap_or("");
         if !accept.contains("text/event-stream") {
-            error!("GET request without SSE support in Accept header: {}", accept);
+            error!(
+                "GET request without SSE support in Accept header: {}",
+                accept
+            );
             return Err(StatusCode::METHOD_NOT_ALLOWED);
         }
 
@@ -474,7 +582,6 @@ impl McpServer {
         info!("SSE stream not implemented, returning method not allowed");
         Err(StatusCode::METHOD_NOT_ALLOWED)
     }
-
 }
 
 // JSON-RPC helper methods
