@@ -13,9 +13,12 @@ COPY src ./src
 
 # RUN cargo build --release
 
-# Install cross-compilation tools
-RUN apt-get update && apt-get install -y gcc-aarch64-linux-gnu && rm -rf /var/lib/apt/lists/* && rustup target add aarch64-unknown-linux-gnu
+# RUN apt-get update && apt-get install -y gcc-aarch64-linux-gnu && rm -rf /var/lib/apt/lists/* && rustup target add aarch64-unknown-linux-gnu
 
+# Install cross-compilation tools
+RUN if [ "$TARGETARCH" = "arm64" ]; then \
+        apt-get update && apt-get install -y gcc-aarch64-linux-gnu && rm -rf /var/lib/apt/lists/* && rustup target add aarch64-unknown-linux-gnu; \
+        fi
 
 # cross-compile if possible
 RUN if [ "$TARGETARCH" = "arm64" ]; then \
@@ -29,9 +32,11 @@ RUN if [ "$TARGETARCH" = "arm64" ]; then \
         exit 1; \
     fi && \
     cargo build --release --target=${RUST_TARGET} && \
+    stat target/${RUST_TARGET}/release/main && \
     cp target/${RUST_TARGET}/release/main keipes-ai-mcp && \
-    chmod +x keipes-ai-mcp
-
+    chmod +x keipes-ai-mcp && \
+    ls -la /app/target/${RUST_TARGET}/release/ && \
+    head -n 50 src/main.rs;
 
 FROM debian:bookworm-slim
 

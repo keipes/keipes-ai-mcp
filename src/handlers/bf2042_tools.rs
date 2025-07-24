@@ -5,6 +5,7 @@ use rmcp::model::*;
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
+use tracing::{error, info};
 
 pub struct WeaponsByCategoryTool {
     stats_client: Arc<std::sync::Mutex<Option<Arc<StatsClient>>>>,
@@ -13,36 +14,37 @@ pub struct WeaponsByCategoryTool {
 
 impl WeaponsByCategoryTool {
     pub fn new() -> Self {
-        eprintln!("Creating new WeaponsByCategoryTool instance");
+        info!("Creating new WeaponsByCategoryTool instance");
         let stats_client = Arc::new(std::sync::Mutex::new(None));
         let ready = Arc::new(std::sync::atomic::AtomicBool::new(false));
         let stats_client_clone = Arc::clone(&stats_client);
         let ready_clone = Arc::clone(&ready);
         // Spawn background task to initialize the client
         tokio::spawn(async move {
-            eprintln!("Starting BF2042 stats client initialization...");
-            let database_url = std::env::var("DATABASE_URL")
-                .unwrap();
-            eprintln!("Using database URL: {}", database_url);
-            let config = DatabaseConfig::new(database_url)
-                .with_max_connections(10);
-            eprintln!("Created database config, attempting connection...");
+            info!("Starting BF2042 stats client initialization...");
+            let database_url = std::env::var("DATABASE_URL").unwrap();
+            info!("Using database URL: {}", database_url);
+            let config = DatabaseConfig::new(database_url).with_max_connections(10);
+            info!("Created database config, attempting connection...");
             match StatsClient::new(&config).await {
                 Ok(client) => {
-                    eprintln!("BF2042 stats client initialized successfully");
+                    info!("BF2042 stats client initialized successfully");
                     *stats_client_clone.lock().unwrap() = Some(Arc::new(client));
                     ready_clone.store(true, std::sync::atomic::Ordering::SeqCst);
-                    eprintln!("BF2042 stats client marked as ready");
+                    info!("BF2042 stats client marked as ready");
                 }
                 Err(e) => {
-                    eprintln!("Failed to initialize BF2042 stats client: {}", e);
-                    eprintln!("Error details: {:?}", e);
+                    error!("Failed to initialize BF2042 stats client: {}", e);
+                    error!("Error details: {:?}", e);
                     // Remain not ready
                 }
             }
         });
-        eprintln!("WeaponsByCategoryTool created, background initialization started");
-        Self { stats_client, ready }
+        info!("WeaponsByCategoryTool created, background initialization started");
+        Self {
+            stats_client,
+            ready,
+        }
     }
 }
 
@@ -97,11 +99,14 @@ impl ToolTrait for WeaponsByCategoryTool {
                 })?;
             let client = {
                 let client_guard = stats_client.lock().unwrap();
-                client_guard.as_ref().ok_or_else(|| ErrorData {
-                    code: ErrorCode(-32603),
-                    message: "BF2042 stats client is not available.".into(),
-                    data: None,
-                })?.clone()
+                client_guard
+                    .as_ref()
+                    .ok_or_else(|| ErrorData {
+                        code: ErrorCode(-32603),
+                        message: "BF2042 stats client is not available.".into(),
+                        data: None,
+                    })?
+                    .clone()
             };
             let weapons: Vec<_> = client
                 .weapons_by_category(category)

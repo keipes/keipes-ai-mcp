@@ -5,22 +5,48 @@ edition = "2021"
 
 [dependencies]
 rmcp = { version = "0.3", features = [
-    "server",
-    "transport-streamable-http-server",
-    "transport-worker",
+    "base64",
     "macros",
+    "server",
+    "transport-async-rw",
+    "auth",
+    "client",
+    "client-side-sse",
+    "reqwest",
+    "reqwest-tls-no-provider",
+    "schemars",
+    "server-side-http",
+    "tower",
+    "transport-child-process",
+    "transport-io",
+    "transport-sse-client",
+    "transport-sse-server",
+    "transport-streamable-http-client",
+    "transport-streamable-http-server",
+    "transport-streamable-http-server-session",
+    "transport-worker",
+    "uuid"
 ] }
+
 rmcp-macros = "0.3"
-tokio = { version = "1.0", features = ["full"] }
+tokio = { version = "1.0", features = ["full", "rt"] }
 tokio-util = "0.7"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-axum = "0.8"
+axum = {version = "0.8", features = ["macros"]}
+axum-server = { version = "0.7", features = ["tls-rustls"] }
 uuid = { version = "1.0", features = ["v4"] }
 bf2042_stats = { git = "https://github.com/keipes/keipes-ai-mcp-2042" }
 futures = "0.3"
 tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+dotenv = "0.15.0"
+rustls = "0.23.29"
+chrono = "0.4.41"
+hyper = "1.6.0"
+console-subscriber = "0.4.1"
+hyper-util = "0.1.16"
+anyhow = "1.0"
 
 [lib]
 name = "keipes_ai_mcp"
@@ -33,3 +59,6 @@ path = "src/main.rs"
 [dev-dependencies]
 anyhow = "1.0"
 reqwest = { version = "0.12", features = ["json"] }
+
+[profile.release]
+debug = true

@@ -1,0 +1,4 @@
+Two socket listeners: TLS and non-TLS.
+Two routers.
+Routing and method abstraction layers are separate.
+Handlers and methods stored in shared objects.

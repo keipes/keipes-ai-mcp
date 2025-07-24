@@ -1,3 +1,5 @@
 /.idea
 /target
 push-image.sh
+.env
+user-data.sh
