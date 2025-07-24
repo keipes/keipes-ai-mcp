@@ -1,5 +1,4 @@
-/.idea
-/target
-push-image.sh
 .env
-user-data.sh
+/.idea
+/.local
+/target

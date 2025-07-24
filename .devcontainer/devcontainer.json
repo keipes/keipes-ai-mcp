@@ -8,7 +8,7 @@
   // Features to add to the dev container. More info: https://containers.dev/features.
   "features": {
     "ghcr.io/devcontainers/features/rust:1": {},
-    // "ghcr.io/devcontainers/features/docker-in-docker:2": {},
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {},
     "ghcr.io/itsmechlark/features/postgresql:1": {},
     "ghcr.io/devcontainers/features/node:1": {
       "version": "latest"
@@ -24,7 +24,7 @@
   "forwardPorts": [80, 443],
 
   // Use 'postCreateCommand' to run commands after the container is created.
-  // "postCreateCommand": "uname -a",
+  "postCreateCommand": "cargo install tokio-console just",
 
   // Configure tool-specific properties.
   // "customizations": {},
