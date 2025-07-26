@@ -1,3 +1,4 @@
+pub mod client;
 pub mod handlers;
 pub mod mcp;
 pub mod tools;

@@ -2,6 +2,7 @@
 name = "keipes-ai-mcp"
 version = "0.1.0"
 edition = "2021"
+default-run = "main"
 
 [dependencies]
 rmcp = { version = "0.3", features = [
@@ -29,7 +30,7 @@ rmcp = { version = "0.3", features = [
 ] }
 
 rmcp-macros = "0.3"
-tokio = { version = "1.0", features = ["full", "rt"] }
+tokio = { version = "1.0", features = ["full", "rt", "tracing"] }
 tokio-util = "0.7"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
@@ -55,6 +56,10 @@ path = "src/lib.rs"
 [[bin]]
 name = "main"
 path = "src/main.rs"
+
+[[bin]]
+name = "client"
+path = "src/client/main.rs"
 
 [dev-dependencies]
 anyhow = "1.0"

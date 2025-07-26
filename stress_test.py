@@ -29,7 +29,8 @@ class MCPStressTester:
 
         start_time = time.time()
         try:
-            headers = {"Accept": "application/json"}
+            headers = {"Accept": "application/json",
+                       "Content-Type": "application/json"}
             async with session.post(self.endpoint, json=payload, headers=headers) as response:
                 result = await response.json()
                 end_time = time.time()
