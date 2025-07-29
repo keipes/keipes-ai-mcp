@@ -1,5 +1,4 @@
 use super::bf2042_tools::WeaponsByCategoryTool;
-use axum::routing::MethodRouter;
 use rmcp::model::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;

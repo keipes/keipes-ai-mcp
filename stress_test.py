@@ -164,7 +164,7 @@ async def main():
     parser = argparse.ArgumentParser(description="Stress test MCP server")
     parser.add_argument(
         # "--url", default="https://ai.diceplz.com", help="Base URL of MCP server")
-        "--url", default="http://mcp.diceplz.com", help="Base URL of MCP server")
+        "--url", default="https://mcp.diceplz.com", help="Base URL of MCP server")
     parser.add_argument("--requests", type=int, default=100,
                         help="Number of requests to send")
     parser.add_argument("--concurrency", type=int, default=10,

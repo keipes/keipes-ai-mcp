@@ -3,14 +3,12 @@ use anyhow::{Error, Result};
 use rmcp::{
     model::{
         CallToolRequestParam, ClientCapabilities, ClientInfo, Implementation,
-        InitializeRequestParam, InitializeResult,
+        InitializeRequestParam,
     },
     service::RunningService,
     transport::StreamableHttpClientTransport,
     RoleClient, ServiceExt,
 };
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
-
 type RmcpClient = RunningService<RoleClient, InitializeRequestParam>;
 
 // #[derive(Default)]

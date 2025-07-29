@@ -1,0 +1,24 @@
+[Unit]
+Description=Keipes AI MCP Server
+After=network.target
+
+[Service]
+Type=simple
+User=mcp
+Group=mcp
+WorkingDirectory=/opt/keipes-ai-mcp
+ExecStart=/usr/local/bin/keipes-ai-mcp
+Restart=always
+RestartSec=5
+Environment=RUST_LOG=info
+Environment=PORT=8080
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/keipes-ai-mcp
+
+[Install]
+WantedBy=multi-user.target
