@@ -69,47 +69,42 @@ check_files_differ() {
 deploy_to_host() {
     local host=$1
 
-    # echo "Deploying to $host"
-    
-    # Check if files differ in single SSH call
     check_files_differ "$host" "$SOURCE_SERVICE_PATH" "$DEST_SERVICE_PATH" "$SOURCE_BIN_PATH" "$DEST_BIN_PATH"
     
-    # Update service definition
     if [ "$service_differs" -eq 0 ]; then
-        echo "Service staging"
+        echo "Copy $SOURCE_SERVICE_PATH to $host:$DEST_SERVICE_STAGING"
         scp -C "$SOURCE_SERVICE_PATH" "$host:$DEST_SERVICE_STAGING"
     fi
     if [ "$binary_differs" -eq 0 ]; then
-        echo "Binary staging"
+        echo "Copy $SOURCE_BIN_PATH to $host:$DEST_BIN_STAGING"
         scp -C "$SOURCE_BIN_PATH" "$host:$DEST_BIN_STAGING"
     fi
-    # Deploy with systemd restart
     if [ "$service_differs" -eq 0 ] || [ "$binary_differs" -eq 0 ]; then
-        # echo "Deploying to $host"
+        echo "Update $host"
             ssh -q "$host" << EOF
 set -e
-echo "Stopping service"
+echo "Stop $SERVICE_NAME"
 sudo systemctl stop $SERVICE_NAME || true
 if [ $service_differs -eq 0 ]; then
-    echo "Copying service file"
+    echo "Move $DEST_SERVICE_STAGING to $DEST_SERVICE_PATH"
     sudo mv $DEST_SERVICE_STAGING $DEST_SERVICE_PATH
-    echo "Reloading systemd daemon"
+    echo "Reload systemd"
     sudo systemctl daemon-reload
-    echo "Enabling service"
+    echo "Enable $SERVICE_NAME"
     sudo systemctl enable $SERVICE_NAME
 fi
 if [ $binary_differs -eq 0 ]; then
-    echo "Copying binary"
+    echo "Copy $DEST_BIN_STAGING to $DEST_BIN_PATH"
     sudo cp $DEST_BIN_STAGING $DEST_BIN_PATH
-    echo "Setting permissions"
+    echo "Set executable"
     sudo chmod +x $DEST_BIN_PATH
 fi
-echo "Starting service"
+echo "Start $SERVICE_NAME"
 sudo systemctl start $SERVICE_NAME
 sudo systemctl status $SERVICE_NAME
 EOF
     else
-        echo "No changes detected, skipping deployment to $host"
+        echo "No changes"
         return 0
     fi
 }
