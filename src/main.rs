@@ -1,6 +1,6 @@
 // use console_subscriber::init as tokio_console_init;
 use dotenvy::dotenv;
-use keipes_ai_mcp::{types::ServerConfig, McpServer};
+use keipes_ai_mcp::McpServer;
 use std::env;
 use tracing::{info, warn};
 

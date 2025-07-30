@@ -1,13 +1,10 @@
 use axum::Router;
-use axum::ServiceExt;
 use axum_server::tls_rustls::RustlsConfig;
 use futures::stream::FuturesUnordered;
 use futures::stream::StreamExt;
 use std::{env, net::SocketAddr, str::FromStr};
 use tokio::net::TcpListener;
 use tracing::{error, info};
-
-use crate::mcp;
 
 // Start the server by binding to a socket and serving the router
 async fn serve_https(
@@ -24,24 +21,10 @@ async fn serve_https(
         .map_err(|e| e.into())
 }
 
-// async fn serve_http(addr: &str) -> Result<(), Box<dyn std::error::Error>> {
-//     let addr = SocketAddr::from_str(addr)?;
-//     info!("Binding to address: {}", addr);
-//     let nexus_service = mcp::create_nexus_service();
-//     axum_server::bind(addr)
-//         .serve(nexus_service.into_make_service())
-//         .await
-//         .map_err(|e| e.into())
-// }
-
 async fn serve_http(addr: &str, router: Router) -> Result<(), Box<dyn std::error::Error>> {
     let addr = SocketAddr::from_str(addr)?;
     info!("Binding to address: {}", addr);
-    // let nexus_service = mcp::create_nexus_service();
-    // let nexus_make_service = nexus_service.into_make_service();
     axum_server::bind(addr)
-        // .serve(nexus_service.into_make_service())
-        // .serve(nexus_make_service)
         .serve(router.into_make_service())
         .await
         .map_err(|e| e.into())

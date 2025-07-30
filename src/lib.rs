@@ -1,15 +1,13 @@
 pub mod client;
 pub mod handlers;
 pub mod mcp;
-pub mod types;
 
 use crate::handlers::server;
 use axum::{
     extract::Request,
-    http::StatusCode,
     middleware::{self, Next},
     response::Response,
-    routing::{get, post},
+    routing::get,
     Router,
 };
 use tracing::info;
