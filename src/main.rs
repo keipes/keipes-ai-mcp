@@ -36,12 +36,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         "Starting the MCP server with tracing enabled, build time: {}",
         build_time
     );
-    // let _ = axum_server().await.serve().await;
     run_server().await;
-
     Ok(())
 }
-
-// async fn axum_server() -> McpServer {
-//     McpServer::new().await
-// }
