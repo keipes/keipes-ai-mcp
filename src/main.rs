@@ -1,6 +1,7 @@
 // use console_subscriber::init as tokio_console_init;
 use dotenvy::dotenv;
-use keipes_ai_mcp::McpServer;
+use keipes_ai_mcp::run_server;
+// use keipes_ai_mcp::McpServer;
 use std::env;
 use tracing::{info, warn};
 
@@ -35,11 +36,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         "Starting the MCP server with tracing enabled, build time: {}",
         build_time
     );
-    let _ = axum_server().await.serve().await;
+    // let _ = axum_server().await.serve().await;
+    run_server().await;
 
     Ok(())
 }
 
-async fn axum_server() -> McpServer {
-    McpServer::new().await
-}
+// async fn axum_server() -> McpServer {
+//     McpServer::new().await
+// }

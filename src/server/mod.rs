@@ -1,3 +1,4 @@
+pub mod mcp;
 use axum::Router;
 use axum_server::tls_rustls::RustlsConfig;
 use futures::stream::FuturesUnordered;

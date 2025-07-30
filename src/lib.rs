@@ -1,8 +1,6 @@
 pub mod client;
-pub mod handlers;
-pub mod mcp;
-
-use crate::handlers::server;
+pub mod server;
+use crate::server::mcp;
 use axum::{
     extract::Request,
     middleware::{self, Next},
@@ -12,55 +10,38 @@ use axum::{
 };
 use tracing::info;
 
-#[derive(Clone)]
-pub struct McpServer {}
+pub async fn run_server() {
+    let nexus_service = mcp::create_nexus_service();
+    let router = Router::new()
+        .route("/health", get(|| async { "OK" }))
+        .fallback_service(nexus_service)
+        .layer(middleware::from_fn(log_requests));
+    server::serve(router).await;
+}
 
-impl McpServer {
-    pub async fn new() -> Self {
-        Self {}
+async fn log_requests(req: Request, next: Next) -> Response {
+    let method = req.method().clone();
+    let uri = req.uri().clone();
+    if uri.path() == "/health" {
+        // do not log health checks
+        return next.run(req).await;
     }
+    let headers = req.headers().clone();
+    let origin = headers
+        .get("Origin")
+        .and_then(|h| h.to_str().ok())
+        .unwrap_or("none");
 
-    pub async fn serve(&self) {
-        let server = self.clone();
+    info!("Request - {} {} origin: {}", method, uri, origin);
 
-        let nexus_service = mcp::create_nexus_service();
-        let app = Router::new()
-            .route("/health", get(|| async { "OK" }))
-            .fallback_service(nexus_service)
-            .layer(middleware::from_fn(Self::log_requests))
-            .with_state(server);
-        server::serve(app).await;
-    }
+    let response = next.run(req).await;
 
-    pub fn shutdown(&self) {
-        // Graceful shutdown will be handled by dropping the server
-    }
+    info!(
+        "Response - {} {} status: {}",
+        method,
+        uri,
+        response.status()
+    );
 
-    // Request logging middleware
-    async fn log_requests(req: Request, next: Next) -> Response {
-        let method = req.method().clone();
-        let uri = req.uri().clone();
-        if uri.path() == "/health" {
-            // do not log health checks
-            return next.run(req).await;
-        }
-        let headers = req.headers().clone();
-        let origin = headers
-            .get("Origin")
-            .and_then(|h| h.to_str().ok())
-            .unwrap_or("none");
-
-        info!("Request - {} {} origin: {}", method, uri, origin);
-
-        let response = next.run(req).await;
-
-        info!(
-            "Response - {} {} status: {}",
-            method,
-            uri,
-            response.status()
-        );
-
-        response
-    }
+    response
 }
