@@ -5,6 +5,8 @@
 project := "keipes-ai-mcp"
 port := "80"
 
+set windows-shell := ["powershell.exe", "-c"]
+
 # # Build the Docker image
 # build:
 #     docker build -t {{project}} .
@@ -22,16 +24,37 @@ port := "80"
 #     just stop; just build; just run
 
 
-build:
+build-mac:
     brew install aarch64-unknown-linux-gnu
     rustup target add aarch64-unknown-linux-gnu
     export CC_aarch64_unknown_linux_gnu=aarch64-linux-gnu-gcc
     export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc
     cargo build --target aarch64-unknown-linux-gnu --release
 
+build-linux:
+    # Install cross if not already installed
+    cargo install cross
+    export PATH=~/.cargo/bin:$PATH
+    # Install the target if not already installed
+    rustup target add aarch64-unknown-linux-gnu
+    # Set the linker for the target
+    # export CC_aarch64_unknown_linux_gnu=aarch64-linux-gnu-gcc
+    # export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc
+    # Build the project for the target
+    cross build --target aarch64-unknown-linux-gnu --release
+
+# just --shell powershell.exe --shell-arg -c build-windows
+build-windows:
+    rustup target add aarch64-unknown-linux-gnu
+    rustup toolchain add stable-x86_64-unknown-linux-gnu --force-non-host
+    # $Env:CC_aarch64_unknown_linux_gnu="aarch64-linux-gnu-gcc"
+    # $Env:CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER="aarch64-linux-gnu-gcc"
+    # cargo build --target aarch64-unknown-linux-gnu --release
+    cross build --target aarch64-unknown-linux-gnu --release
+
 deploy:
-    just build
-    ./scripts/deploy.sh
+    # just build-linux
+    scripts/deploy.sh
 
 setup-systemd host:
     # scp scripts/systemd/keipes-ai-mcp.service $host:/etc/systemd/system/keipes-ai-mcp.service

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # filepath: scripts/deploy.sh
 set -e
 
