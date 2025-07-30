@@ -1,4 +1,4 @@
-use super::bf2042_tools::WeaponsByCategoryTool;
+// use super::bf2042_tools::WeaponsByCategoryTool;
 use rmcp::model::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -86,10 +86,10 @@ impl ToolHandler {
         let echo_tool: Arc<dyn ToolTrait + Send + Sync> = Arc::new(EchoTool);
         tools.insert(echo_tool.name().to_string(), echo_tool);
 
-        // Try to initialize BF2042 tools, but don't fail if they're not available
-        let weapons_by_category_tool = WeaponsByCategoryTool::new();
-        let tool: Arc<dyn ToolTrait + Send + Sync> = Arc::new(weapons_by_category_tool);
-        tools.insert(tool.name().to_string(), tool);
+        // // Try to initialize BF2042 tools, but don't fail if they're not available
+        // let weapons_by_category_tool = WeaponsByCategoryTool::new();
+        // let tool: Arc<dyn ToolTrait + Send + Sync> = Arc::new(weapons_by_category_tool);
+        // tools.insert(tool.name().to_string(), tool);
 
         Self { tools }
     }

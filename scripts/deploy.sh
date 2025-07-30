@@ -9,7 +9,7 @@ SERVICE_NAME="keipes-ai-mcp"
 
 SOURCE_BIN_PATH="target/aarch64-unknown-linux-gnu/release/$BINARY_NAME"
 DEST_BIN_STAGING="~/$BINARY_NAME"
-DEST_BIN_PATH="/usr/local/bin/$SERVICE_NAME"
+DEST_BIN_PATH="/opt/$SERVICE_NAME/$BINARY_NAME"
 
 SOURCE_SERVICE_PATH="scripts/systemd/keipes-ai-mcp.service"
 DEST_SERVICE_STAGING="~/keipes-ai-mcp.service"
@@ -83,10 +83,13 @@ deploy_to_host() {
         echo "Update $host"
             ssh -q "$host" << EOF
 set -e
+touch ~/.hushlogin
+mkdir -p /var/$SERVICE_NAME
 echo "Stop $SERVICE_NAME"
 sudo systemctl stop $SERVICE_NAME || true
 if [ $service_differs -eq 0 ]; then
     echo "Move $DEST_SERVICE_STAGING to $DEST_SERVICE_PATH"
+    sudo mkdir -p $(dirname "$DEST_SERVICE_PATH")
     sudo mv $DEST_SERVICE_STAGING $DEST_SERVICE_PATH
     echo "Reload systemd"
     sudo systemctl daemon-reload
@@ -95,6 +98,7 @@ if [ $service_differs -eq 0 ]; then
 fi
 if [ $binary_differs -eq 0 ]; then
     echo "Copy $DEST_BIN_STAGING to $DEST_BIN_PATH"
+    sudo mkdir -p $(dirname "$DEST_BIN_PATH")
     sudo cp $DEST_BIN_STAGING $DEST_BIN_PATH
     echo "Set executable"
     sudo chmod +x $DEST_BIN_PATH

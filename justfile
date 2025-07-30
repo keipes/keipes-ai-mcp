@@ -33,14 +33,9 @@ build-mac:
 
 build-linux:
     # Install cross if not already installed
-    cargo install cross
-    export PATH=~/.cargo/bin:$PATH
-    # Install the target if not already installed
-    rustup target add aarch64-unknown-linux-gnu
-    # Set the linker for the target
-    # export CC_aarch64_unknown_linux_gnu=aarch64-linux-gnu-gcc
-    # export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc
-    # Build the project for the target
+    # cargo install cross
+    # export PATH=~/.cargo/bin:$PATH
+    # rustup target add aarch64-unknown-linux-gnu
     cross build --target aarch64-unknown-linux-gnu --release
 
 # just --shell powershell.exe --shell-arg -c build-windows
@@ -53,11 +48,18 @@ build-windows:
     cross build --target aarch64-unknown-linux-gnu --release
 
 deploy:
-    # just build-linux
+    just build-linux
     scripts/deploy.sh
+
+logs host:
+    ssh {{host}} "journalctl -u keipes-ai-mcp.service -f -o cat"
 
 setup-systemd host:
     # scp scripts/systemd/keipes-ai-mcp.service $host:/etc/systemd/system/keipes-ai-mcp.service
     # ssh $host "sudo systemctl daemon-reload && sudo systemctl enable keipes-ai-mcp"
     scp scripts/systemd/keipes-ai-mcp.service {{host}}:/tmp/
     ssh {{host}} "sudo mv /tmp/keipes-ai-mcp.service /etc/systemd/system/ && sudo systemctl daemon-reload && sudo systemctl enable keipes-ai-mcp"
+
+install-certs host s3path:
+    echo "scripts/install-certs.sh {{host}} {{s3path}}"
+    ./scripts/install-certs.sh {{host}} {{s3path}}
