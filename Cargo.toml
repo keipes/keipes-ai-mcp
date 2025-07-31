@@ -5,7 +5,7 @@ edition = "2021"
 default-run = "main"
 
 [dependencies]
-rmcp = { version = "0.3", features = ["auth", "client", "transport-streamable-http-client", "transport-streamable-http-server"] }
+rmcp = { path = "../rust-sdk/crates/rmcp",  features = ["auth", "client", "transport-streamable-http-client", "transport-streamable-http-server"] }
 
 # rmcp-macros = "0.3"
 tokio = { version = "1.0", features = ["full"] }
@@ -18,10 +18,11 @@ tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 dotenvy = "0.15.7"
 rustls = "0.23.29"
 anyhow = "1.0"
+console-subscriber = "0.4.1"
 
-[lib]
-name = "keipes_ai_mcp"
-path = "src/lib.rs"
+# [lib]
+# name = "keipes_ai_mcp"
+# path = "src/lib.rs"
 
 [[bin]]
 name = "main"

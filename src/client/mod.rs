@@ -80,6 +80,7 @@ pub async fn stress(server_uri: &str, workers: usize, total_calls: usize) -> Res
         workers,
         total_calls
     );
+    let start = std::time::Instant::now();
     let handles = (0..workers)
         .map(|_| {
             let server_uri = server_uri.to_string();
@@ -91,11 +92,13 @@ pub async fn stress(server_uri: &str, workers: usize, total_calls: usize) -> Res
                 let client = create_client(&server_uri)
                     .await
                     .expect("Failed to create client");
+                let mut count = 0;
                 tracing::info!("Worker started for server: {}", server_uri);
                 while remaining_calls.load(std::sync::atomic::Ordering::SeqCst) > 0 {
                     if remaining_calls.fetch_sub(1, std::sync::atomic::Ordering::SeqCst) == 0 {
                         break;
                     }
+                    count += 1;
                     let start = std::time::Instant::now();
                     let response = client
                         .call_tool(CallToolRequestParam {
@@ -106,30 +109,34 @@ pub async fn stress(server_uri: &str, workers: usize, total_calls: usize) -> Res
                     let duration = start.elapsed().as_millis() as usize;
                     durations.lock().unwrap().push(duration);
                     if let Ok(tool_result) = response {
-                        tracing::info!("Tool result: {tool_result:#?}");
+                        // tracing::info!("Call took {} ms", duration);
+                        // tracing::info!("Tool result: {tool_result:#?}");
                         successes.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
                     } else {
                         tracing::error!("Error calling tool: {:?}", response);
                         failures.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
                     }
                 }
+                tracing::info!("Worker finished after {} calls", count);
             })
         })
         .collect::<Vec<_>>();
+    info!("Spawned {} worker tasks", handles.len());
     let mut handles = FuturesUnordered::from_iter(handles);
     while let Some(result) = handles.next().await {
         if let Err(e) = result {
             error!("Worker task failed: {}", e);
         }
-        info!("Worker task exited");
+        // info!("Worker task exited");
     }
+    let elapsed = start.elapsed().as_millis() as usize;
     let total_duration = durations.lock().unwrap().iter().sum::<usize>();
     let total_successes = successes.load(std::sync::atomic::Ordering::SeqCst);
     let total_failures = failures.load(std::sync::atomic::Ordering::SeqCst);
     let min_duration = durations.lock().unwrap().iter().min().cloned().unwrap_or(0);
     let max_duration = durations.lock().unwrap().iter().max().cloned().unwrap_or(0);
-    let rps = if total_duration > 0 {
-        (total_successes as f64 / total_duration as f64) * 1000.0
+    let rps = if elapsed > 0 {
+        (total_successes as f64 / elapsed as f64) * 1000.0
     } else {
         0.0
     };
@@ -140,8 +147,8 @@ pub async fn stress(server_uri: &str, workers: usize, total_calls: usize) -> Res
     };
 
     info!(
-        "Stress test completed: total calls: {}\n\tsuccesses: {}\n\tfailures: {}\n\ttotal duration: {} ms\n\tmean duration: {} ms\n\tmax duration: {} ms\n\tmin duration: {} ms\n\tRPS: {:.2}",
-        total_calls, total_successes, total_failures, total_duration, mean_duration, max_duration, min_duration, rps
+        "Stress test completed: total calls: {}\n\tsuccesses: {}\n\tfailures: {}\n\telapsed: {} ms\n\tmean duration: {} ms\n\tmax duration: {} ms\n\tmin duration: {} ms\n\tRPS: {:.2}",
+        total_calls, total_successes, total_failures, elapsed, mean_duration, max_duration, min_duration, rps
     );
     if total_failures > 0 {
         error!("Stress test completed with failures: {}", total_failures);

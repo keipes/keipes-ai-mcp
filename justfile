@@ -36,7 +36,7 @@ build-linux:
     # cargo install cross
     # export PATH=~/.cargo/bin:$PATH
     # rustup target add aarch64-unknown-linux-gnu
-    cross build --bin main --target aarch64-unknown-linux-gnu --release
+    cross build --target aarch64-unknown-linux-gnu --release
 
 # just --shell powershell.exe --shell-arg -c build-windows
 build-windows:

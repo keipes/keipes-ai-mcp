@@ -3,15 +3,16 @@
 //! A high-performance Model Context Protocol (MCP) server implementation
 //! providing advanced tool routing and capability management.
 
-use std::{future::Future, sync::Arc};
-use tokio::sync::Mutex;
+use std::{future::Future, sync::Arc, time::Duration};
+use tokio::sync::{Mutex, RwLock};
 
 use rmcp::{
     handler::server::tool::ToolRouter,
     model::*,
     tool, tool_handler, tool_router,
-    transport::streamable_http_server::{
-        session::local::LocalSessionManager, StreamableHttpService,
+    transport::{
+        streamable_http_server::{session::local::LocalSessionManager, StreamableHttpService},
+        StreamableHttpServerConfig,
     },
     ServerHandler,
 };
@@ -21,10 +22,23 @@ use rmcp::{
 /// # Returns
 /// A configured `StreamableHttpService` ready to be embedded in a web server.
 pub fn create_nexus_service() -> StreamableHttpService<NexusServer> {
+    // let config: StreamableHttpServerConfig = StreamableHttpServerConfig {
+    //     stateful_mode: false,
+    //     sse_keep_alive: None,
+    // };
+    // let local_session_manager = LocalSessionManager {
+    //     session_config: config.clone(),
+    //     sessions: Default::default(),
+    // };
+    // let local_session_managers = Arc::new(local_session_manager);
+    // config.stateful_mode = true;
     StreamableHttpService::new(
         || Ok(NexusServer::new()),
-        LocalSessionManager::default().into(),
         Default::default(),
+        StreamableHttpServerConfig {
+            stateful_mode: true,
+            sse_keep_alive: Some(Duration::from_secs(15)),
+        },
     )
 }
 

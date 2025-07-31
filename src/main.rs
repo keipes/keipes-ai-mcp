@@ -1,22 +1,31 @@
-// use console_subscriber::init as tokio_console_init;
+use console_subscriber::init as tokio_console_init;
 use dotenvy::dotenv;
-use keipes_ai_mcp::run_server;
+use keipes_ai_mcp::{logs, run_server};
 // use keipes_ai_mcp::McpServer;
 use std::env;
 use tracing::{info, warn};
 
+static TOKIO_CONSOLE: bool = false;
+
+// #[tokio::main(flavor = "current_thread")]
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // tokio_console_init();
-    tracing_subscriber::fmt()
-        .with_env_filter(
-            tracing_subscriber::EnvFilter::from_default_env()
-                .add_directive("info".parse()?)
-                .add_directive("main=debug".parse()?)
-                .add_directive("bf2042_stats=debug".parse()?),
-        )
-        .json()
-        .init();
+    if TOKIO_CONSOLE {
+        tokio_console_init();
+    } else {
+        // tracing_subscriber::fmt()
+        //     .with_env_filter(
+        //         tracing_subscriber::EnvFilter::from_default_env()
+        //             .add_directive("debug".parse()?)
+        //             .add_directive("rmcp=debug".parse()?)
+        //             .add_directive("main=debug".parse()?)
+        //             .add_directive("bf2042_stats=debug".parse()?),
+        //     )
+        //     // .json()
+        //     .init();
+        logs::init_logging()?;
+    }
+
     let _ = rustls::crypto::ring::default_provider().install_default();
     // handle dotenv errors gracefully
     let got_env = dotenv().ok();

@@ -2,7 +2,7 @@
 
 set -e
 
-EC2_HOST="keipes"
+EC2_HOST="mcp"
 OVH_HOST="your-ovh-host"
 BINARY_NAME="main"
 SERVICE_NAME="keipes-ai-mcp"
@@ -68,7 +68,7 @@ check_files_differ() {
 
 deploy_to_host() {
     local host=$1
-
+    echo "Deploying to $host"
     check_files_differ "$host" "$SOURCE_SERVICE_PATH" "$DEST_SERVICE_PATH" "$SOURCE_BIN_PATH" "$DEST_BIN_PATH"
     
     if [ "$service_differs" -eq 0 ]; then
