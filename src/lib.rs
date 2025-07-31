@@ -12,7 +12,6 @@ use axum::{
 use std::sync::atomic::Ordering;
 use std::sync::LazyLock;
 use std::sync::{atomic::AtomicUsize, Arc};
-use tokio::sync::RwLock;
 use tracing::info;
 
 pub async fn run_server() {

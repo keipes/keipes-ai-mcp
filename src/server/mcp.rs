@@ -4,16 +4,13 @@
 //! providing advanced tool routing and capability management.
 
 use std::{future::Future, sync::Arc, time::Duration};
-use tokio::sync::{Mutex, RwLock};
+use tokio::sync::Mutex;
 
 use rmcp::{
     handler::server::tool::ToolRouter,
     model::*,
     tool, tool_handler, tool_router,
-    transport::{
-        streamable_http_server::{session::local::LocalSessionManager, StreamableHttpService},
-        StreamableHttpServerConfig,
-    },
+    transport::{streamable_http_server::StreamableHttpService, StreamableHttpServerConfig},
     ServerHandler,
 };
 

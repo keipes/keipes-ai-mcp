@@ -36,5 +36,3 @@ path = "src/client/main.rs"
 anyhow = "1.0"
 reqwest = { version = "0.12", features = ["charset", "http2", "json", "system-proxy"], default-features = false }
 
-[profile.release]
-debug = true

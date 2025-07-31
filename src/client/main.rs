@@ -1,22 +1,8 @@
-use std::{
-    env,
-    sync::{
-        atomic::{AtomicU64, Ordering},
-        Arc,
-    },
-    time::{SystemTime, UNIX_EPOCH},
-};
+use std::env;
 
 use anyhow::Result;
 use dotenvy::dotenv;
 use keipes_ai_mcp::{client::stress, logs};
-use tracing::{Event, Subscriber};
-use tracing_subscriber::{
-    fmt::{self, format::FmtSpan, FmtContext, FormatEvent, FormatFields},
-    layer::SubscriberExt,
-    util::SubscriberInitExt,
-    EnvFilter, FmtSubscriber, Registry,
-};
 
 #[tokio::main]
 async fn main() -> Result<()> {

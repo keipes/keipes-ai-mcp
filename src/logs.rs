@@ -1,4 +1,3 @@
-use std::fmt::Write as _;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -45,9 +44,9 @@ where
 {
     fn format_event(
         &self,
-        ctx: &FmtContext<'_, S, N>,
+        _: &FmtContext<'_, S, N>,
         mut writer: fmt::format::Writer<'_>,
-        event: &Event<'_>,
+        _: &Event<'_>,
     ) -> std::fmt::Result {
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)

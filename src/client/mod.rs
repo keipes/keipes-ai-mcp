@@ -108,7 +108,7 @@ pub async fn stress(server_uri: &str, workers: usize, total_calls: usize) -> Res
                         .await;
                     let duration = start.elapsed().as_millis() as usize;
                     durations.lock().unwrap().push(duration);
-                    if let Ok(tool_result) = response {
+                    if let Ok(_) = response {
                         // tracing::info!("Call took {} ms", duration);
                         // tracing::info!("Tool result: {tool_result:#?}");
                         successes.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
