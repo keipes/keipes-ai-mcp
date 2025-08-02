@@ -5,11 +5,16 @@ edition = "2021"
 default-run = "main"
 
 [dependencies]
-rmcp = { path = "../rust-sdk/crates/rmcp",  features = ["auth", "client", "transport-streamable-http-client", "transport-streamable-http-server"] }
+rmcp = { path = "../rust-sdk/crates/rmcp", features = [
+    "auth",
+    "client",
+    "transport-streamable-http-client",
+    "transport-streamable-http-server",
+] }
 
 # rmcp-macros = "0.3"
-tokio = { version = "1.0", features = ["full"] }
-serde_json = "1.0"
+tokio = { version = "1.47.1", features = ["full"] }
+serde_json = "1.0.142"
 axum = { version = "0.8", features = ["macros"] }
 axum-server = { version = "0.7", features = ["tls-rustls"] }
 futures = "0.3"
@@ -19,8 +24,16 @@ dotenvy = "0.15.7"
 rustls = "0.23.29"
 anyhow = "1.0"
 console-subscriber = "0.4.1"
-reqwest = { version = "0.12", default-features = false, features = ["native-tls", "http2"] }
-
+reqwest = { version = "0.12", default-features = false, features = [
+    "native-tls",
+    "http2",
+] }
+hyper-tls = { version = "0.6.0" }
+hyper = { version = "1.6.0", features = ["client", "http1", "http2"] }
+hyper-util = { version = "0.1.16" }
+bytes = "1.10.1"
+http-body-util = "0.1.3"
+parking_lot = "0.12.0"
 # [lib]
 # name = "keipes_ai_mcp"
 # path = "src/lib.rs"
@@ -35,4 +48,9 @@ path = "src/client/main.rs"
 
 [dev-dependencies]
 anyhow = "1.0"
-reqwest = { version = "0.12", features = ["charset", "http2", "json", "system-proxy"], default-features = false }
+reqwest = { version = "0.12", features = [
+    "charset",
+    "http2",
+    "json",
+    "system-proxy",
+], default-features = false }
