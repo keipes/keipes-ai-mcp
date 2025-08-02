@@ -1,42 +1,16 @@
+use console_subscriber::init as tokio_console_init;
 use std::env;
 
 use anyhow::Result;
-use dotenvy::dotenv;
-use keipes_ai_mcp::{client::stress, logs};
+use keipes_ai_mcp::{client::stress, common::app_env, logs};
 
-#[tokio::main]
+#[tokio::main(flavor = "multi_thread", worker_threads = 2)]
 async fn main() -> Result<()> {
-    // let last = Arc::new(AtomicU64::new(0));
-    // let delta_layer = fmt::layer().event_format(DeltaTimeFormatter { last: last.clone() });
-    // tracing_subscriber::fmt()
-    //     .with_span_events(FmtSpan::CLOSE)
-    //     .with_env_filter(
-    //         tracing_subscriber::EnvFilter::from_default_env()
-    //             .add_directive("info".parse()?)
-    //             .add_directive("rmcp=trace".parse()?)
-    //             .add_directive("main=debug".parse()?),
-    //     )
-    //     .with_timer(tracing_subscriber::fmt::time::uptime()) // Shows time since program start
-    //     .with(delta_layer)
-    //     // .json()
-    //     .init();
-
-    // let last = Arc::new(AtomicU64::new(0));
-    // let delta_layer = fmt::layer().event_format(DeltaTimeFormatter { last: last.clone() });
-    // let env_filter = EnvFilter::from_default_env()
-    //     .add_directive("info".parse()?)
-    //     .add_directive("rmcp=trace".parse()?)
-    //     .add_directive("main=debug".parse()?);
-
-    // Registry::default()
-    //     .with(env_filter)
-    //     // .with(fmt::layer().with_timer(tracing_subscriber::fmt::time::uptime()))
-    //     .with(delta_layer)
-    //     .init();
-
-    // logs::init_logging()?;
-    logs::init_logging().map_err(|e| anyhow::Error::msg(e.to_string()))?;
-    dotenv()?;
+    if app_env::use_tokio_console() {
+        tokio_console_init();
+    } else {
+        logs::init_logging().map_err(|e| anyhow::Error::msg(e.to_string()))?;
+    }
     let args = env::args().collect::<Vec<_>>();
     if args.len() < 4 {
         eprintln!("Usage: {} <server_uri> <workers> <number>", args[0]);
@@ -50,5 +24,10 @@ async fn main() -> Result<()> {
     // client.demo().await?;
     tracing::info!("Starting stress test on server: {}", server_uri);
     stress(server_uri, workers.parse()?, number.parse()?).await?;
+
+    // loop forever, sleep 10ms
+    // loop {
+    //     tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
+    // }
     Ok(())
 }

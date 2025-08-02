@@ -14,10 +14,6 @@ use rmcp::{
     ServerHandler,
 };
 
-/// Creates a new Nexus MCP service instance configured for HTTP transport.
-///
-/// # Returns
-/// A configured `StreamableHttpService` ready to be embedded in a web server.
 pub fn create_nexus_service() -> StreamableHttpService<NexusServer> {
     // let config: StreamableHttpServerConfig = StreamableHttpServerConfig {
     //     stateful_mode: false,
@@ -39,21 +35,14 @@ pub fn create_nexus_service() -> StreamableHttpService<NexusServer> {
     )
 }
 
-/// Nexus MCP Server - A sophisticated tool-enabled MCP server implementation.
-///
-/// Provides intelligent tool routing, state management, and extensible capabilities
-/// for Model Context Protocol interactions.
 #[derive(Clone)]
 pub struct NexusServer {
-    /// Internal counter state for demonstration tools
     counter: Arc<Mutex<i64>>,
-    /// Tool router for handling and dispatching tool calls
     tool_router: ToolRouter<NexusServer>,
 }
 
 #[tool_router]
 impl NexusServer {
-    /// Creates a new Nexus server instance with initialized state.
     pub fn new() -> Self {
         Self {
             counter: Arc::new(Mutex::new(0)),
@@ -61,9 +50,6 @@ impl NexusServer {
         }
     }
 
-    /// Increments the internal counter and returns the new value.
-    ///
-    /// This demonstrates stateful tool operations and async tool handling.
     #[tool(description = "Increment the counter by 1 and return the new value")]
     async fn increment(&self) -> Result<CallToolResult, ErrorData> {
         let mut counter = self.counter.lock().await;
@@ -75,7 +61,6 @@ impl NexusServer {
         ))]))
     }
 
-    /// Retrieves the current counter value without modification.
     #[tool(description = "Get the current counter value")]
     async fn get_counter(&self) -> Result<CallToolResult, ErrorData> {
         let counter = self.counter.lock().await;
@@ -86,7 +71,6 @@ impl NexusServer {
         ))]))
     }
 
-    /// Resets the counter to zero.
     #[tool(description = "Reset the counter to zero")]
     async fn reset_counter(&self) -> Result<CallToolResult, ErrorData> {
         let mut counter = self.counter.lock().await;

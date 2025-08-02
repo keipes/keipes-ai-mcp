@@ -2,6 +2,12 @@ use anyhow::{Error, Result};
 use futures::stream::FuturesUnordered;
 use futures::stream::StreamExt;
 
+use reqwest::get;
+use reqwest::tls;
+use reqwest::ClientBuilder;
+use reqwest::Proxy;
+use rmcp::model::ListToolsRequest;
+use rmcp::transport::streamable_http_client::StreamableHttpClientTransportConfig;
 // use lib;
 use rmcp::{
     model::{
@@ -13,7 +19,7 @@ use rmcp::{
     RoleClient, ServiceExt,
 };
 use tracing::{error, info};
-type RmcpClient = RunningService<RoleClient, InitializeRequestParam>;
+pub type RmcpClient = RunningService<RoleClient, InitializeRequestParam>;
 
 // #[derive(Default)]
 
@@ -52,9 +58,33 @@ impl NexusClient {
         Ok(())
     }
 }
+
+use reqwest;
+fn get_transport(uri: &str) -> StreamableHttpClientTransport<reqwest::Client> {
+    // tracing::info!("Creating StreamableHttpClientTransport with URI: {}", uri);
+    let http_client = ClientBuilder::new()
+        .use_rustls_tls()
+        .pool_max_idle_per_host(20)
+        .tcp_keepalive(std::time::Duration::from_millis(30_000))
+        .build()
+        .expect("Failed to create HTTP client")
+        .into();
+    // tracing::info!("HTTP client created");
+    StreamableHttpClientTransport::with_client(
+        http_client,
+        StreamableHttpClientTransportConfig {
+            uri: uri.into(),
+            ..Default::default()
+        },
+    )
+}
+
 use std::sync::Arc;
 async fn create_client(server_uri: &str) -> Result<RmcpClient, Error> {
-    let transport = StreamableHttpClientTransport::from_uri(server_uri);
+    // tracing::info!("Creating client for server: {}", server_uri);
+    // let transport = StreamableHttpClientTransport::from_uri(server_uri);
+    let transport = get_transport(server_uri);
+    // tracing::info!("Transport created");
     let client_info = ClientInfo {
         protocol_version: Default::default(),
         capabilities: ClientCapabilities::default(),
@@ -63,9 +93,11 @@ async fn create_client(server_uri: &str) -> Result<RmcpClient, Error> {
             version: "0.0.1".to_string(),
         },
     };
+    // tracing::info!("Client info: {:?}", client_info);
     let client = client_info.serve(transport).await.inspect_err(|e| {
         tracing::error!("client error: {:?}", e);
     })?;
+    // tracing::info!("Client created: {:?}", client);
     Ok(client)
 }
 
@@ -80,7 +112,7 @@ pub async fn stress(server_uri: &str, workers: usize, total_calls: usize) -> Res
         workers,
         total_calls
     );
-    let start = std::time::Instant::now();
+    let barrier = Arc::new(tokio::sync::Barrier::new(workers + 1));
     let handles = (0..workers)
         .map(|_| {
             let server_uri = server_uri.to_string();
@@ -88,11 +120,21 @@ pub async fn stress(server_uri: &str, workers: usize, total_calls: usize) -> Res
             let failures = Arc::clone(&failures);
             let successes = Arc::clone(&successes);
             let durations = Arc::clone(&durations);
+            let barrier = barrier.clone();
             tokio::spawn(async move {
+                let mut count = 0;
                 let client = create_client(&server_uri)
                     .await
                     .expect("Failed to create client");
-                let mut count = 0;
+                client
+                    .call_tool(CallToolRequestParam {
+                        name: "increment".into(),
+                        arguments: serde_json::json!({}).as_object().cloned(),
+                    })
+                    .await
+                    .expect("Failed to list tools");
+                tracing::info!("Worker wait for barrier");
+                barrier.wait().await;
                 tracing::info!("Worker started for server: {}", server_uri);
                 while remaining_calls.load(std::sync::atomic::Ordering::SeqCst) > 0 {
                     if remaining_calls.fetch_sub(1, std::sync::atomic::Ordering::SeqCst) == 0 {
@@ -123,6 +165,8 @@ pub async fn stress(server_uri: &str, workers: usize, total_calls: usize) -> Res
         .collect::<Vec<_>>();
     info!("Spawned {} worker tasks", handles.len());
     let mut handles = FuturesUnordered::from_iter(handles);
+    barrier.wait().await; // Wait for all workers to be ready
+    let start = std::time::Instant::now();
     while let Some(result) = handles.next().await {
         if let Err(e) = result {
             error!("Worker task failed: {}", e);

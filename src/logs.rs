@@ -14,14 +14,19 @@ pub fn init_logging() -> Result<(), Box<dyn std::error::Error>> {
     let last = Arc::new(AtomicU64::new(0));
     let delta_layer = fmt::layer().event_format(DeltaTimeFormatter { last: last.clone() });
     let env_filter = EnvFilter::from_default_env()
-        .add_directive("trace".parse()?)
-        .add_directive("h2::proto::streams=debug".parse()?)
-        .add_directive("h2::proto::connection=trace".parse()?)
-        .add_directive("h2::hpack=debug".parse()?)
-        // .add_directive("h2::codec=info".parse()?)
+        .add_directive("info".parse()?)
+        // .add_directive("h2::proto::streams=debug".parse()?)
+        // // .add_directive("h2::proto::connection=trace".parse()?)
+        // .add_directive("h2::hpack=debug".parse()?)
+        // .add_directive("h2::codec=debug".parse()?)
         // .add_directive("h2::frame=debug".parse()?)
-        .add_directive("rustls::client::hs=debug".parse()?)
-        .add_directive("rmcp=trace".parse()?)
+        // // .add_directive("rustls::client::hs=debug".parse()?)
+        // // reqwest, hyper trace
+        // // .add_directive("reqwest=trace".parse()?)
+        // .add_directive("hyper=trace".parse()?)
+        // .add_directive("h2=trace".parse()?)
+        .add_directive("keipes_ai_mcp=info".parse()?)
+        .add_directive("rmcp=warn".parse()?)
         .add_directive("main=debug".parse()?);
 
     Registry::default()

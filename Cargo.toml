@@ -19,6 +19,7 @@ dotenvy = "0.15.7"
 rustls = "0.23.29"
 anyhow = "1.0"
 console-subscriber = "0.4.1"
+reqwest = { version = "0.12", default-features = false, features = ["native-tls", "http2"] }
 
 # [lib]
 # name = "keipes_ai_mcp"
@@ -35,4 +36,3 @@ path = "src/client/main.rs"
 [dev-dependencies]
 anyhow = "1.0"
 reqwest = { version = "0.12", features = ["charset", "http2", "json", "system-proxy"], default-features = false }
-
