@@ -61,11 +61,9 @@ impl NexusClient {
 
 use reqwest;
 fn get_transport(uri: &str) -> StreamableHttpClientTransport<reqwest::Client> {
-    // tracing::info!("Creating StreamableHttpClientTransport with URI: {}", uri);
     let http_client = ClientBuilder::new()
         .use_rustls_tls()
-        .pool_max_idle_per_host(20)
-        .tcp_keepalive(std::time::Duration::from_millis(30_000))
+        .tcp_nodelay(true) // Disable Nagle algorithm to reduce 40-50ms delays
         .build()
         .expect("Failed to create HTTP client")
         .into();
@@ -142,13 +140,37 @@ pub async fn stress(server_uri: &str, workers: usize, total_calls: usize) -> Res
                     }
                     count += 1;
                     let start = std::time::Instant::now();
+                    tracing::debug!("Starting request {} at {:?}", count, start);
+
+                    // Profile the individual call_tool operation with more precise timing
+                    let call_start = std::time::Instant::now();
+                    tracing::trace!("About to call tool at {:?}", call_start);
                     let response = client
                         .call_tool(CallToolRequestParam {
                             name: "increment".into(),
                             arguments: serde_json::json!({}).as_object().cloned(),
                         })
                         .await;
-                    let duration = start.elapsed().as_millis() as usize;
+                    let call_end = std::time::Instant::now();
+                    let call_duration = call_start.elapsed().as_nanos();
+                    tracing::trace!(
+                        "Tool call completed at {:?}, took {}ns",
+                        call_end,
+                        call_duration
+                    );
+
+                    let duration = start.elapsed().as_nanos() as usize;
+                    if duration > 10 {
+                        // Lower threshold to catch more timing details
+                        // Log slow requests to identify specific delay patterns
+                        tracing::debug!(
+                            "Request {}: total={}ns, call_tool={}ns, overhead={}ns",
+                            count,
+                            duration,
+                            call_duration,
+                            duration as u128 - call_duration
+                        );
+                    }
                     durations.lock().unwrap().push(duration);
                     if let Ok(_) = response {
                         // tracing::info!("Call took {} ms", duration);
@@ -158,6 +180,9 @@ pub async fn stress(server_uri: &str, workers: usize, total_calls: usize) -> Res
                         tracing::error!("Error calling tool: {:?}", response);
                         failures.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
                     }
+
+                    // Add small yield to prevent task starvation in tight loops
+                    tokio::task::yield_now().await;
                 }
                 tracing::info!("Worker finished after {} calls", count);
             })
@@ -191,11 +216,17 @@ pub async fn stress(server_uri: &str, workers: usize, total_calls: usize) -> Res
     };
 
     info!(
-        "Stress test completed: total calls: {}\n\tsuccesses: {}\n\tfailures: {}\n\telapsed: {} ms\n\tmean duration: {} ms\n\tmax duration: {} ms\n\tmin duration: {} ms\n\tRPS: {:.2}",
-        total_calls, total_successes, total_failures, elapsed, mean_duration, max_duration, min_duration, rps
+        "Stress test completed: total calls: {}\n\tsuccesses: {}\n\tfailures: {}\n\telapsed: {} ms\n\tmax duration:  {}\n\tmean duration: {}\n\tmin duration:  {}\n\tRPS: {:.2}",
+        total_calls, total_successes, total_failures, elapsed, fmt_ns(max_duration), fmt_ns(mean_duration), fmt_ns(min_duration), rps
     );
     if total_failures > 0 {
         error!("Stress test completed with failures: {}", total_failures);
     }
     Ok(())
+}
+
+fn fmt_ns(duration: usize) -> String {
+    // in seconds
+    let float_duration_ms = duration as f64 / 1_000_000.0;
+    format!("{:.4} ms", float_duration_ms)
 }

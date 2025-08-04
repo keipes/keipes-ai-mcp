@@ -4,8 +4,8 @@ use axum::Router;
 use axum_server::tls_rustls::RustlsConfig;
 use futures::stream::FuturesUnordered;
 use futures::stream::StreamExt;
-use std::{env, net::SocketAddr, str::FromStr};
-use tokio::net::TcpListener;
+use std::{env, net::SocketAddr};
+use tokio::net::{TcpListener, TcpSocket};
 use tracing::{error, info};
 
 use crate::common::metrics::METRICS;
@@ -29,6 +29,10 @@ pub async fn run_server() {
 
 async fn log_requests(req: Request, next: Next) -> Response {
     debug!("{} Request received: {}", req.method(), req.uri());
+    // dump headers
+    for (key, value) in req.headers() {
+        debug!("{}: {}", key, value.to_str().unwrap_or("<invalid>"));
+    }
     METRICS.log_request();
     let start = std::time::Instant::now();
     let response = next.run(req).await;
@@ -79,15 +83,35 @@ async fn get_listener(addr: &str) -> Result<TcpListener, String> {
     let addr = addr
         .parse::<SocketAddr>()
         .map_err(|e| format!("Invalid address: {}", e))?;
-    TcpListener::bind(addr)
-        .await
-        .map_err(|e| format!("Failed to bind to address {}: {}", addr, e))
+
+    // Create socket with optimal settings for low latency
+    let socket = if addr.is_ipv4() {
+        tokio::net::TcpSocket::new_v4()
+    } else {
+        tokio::net::TcpSocket::new_v6()
+    }
+    .map_err(|e| format!("Failed to create socket: {}", e))?;
+
+    // Enable TCP_NODELAY to disable Nagle's algorithm and reduce latency
+    socket
+        .set_nodelay(true)
+        .map_err(|e| format!("Failed to set TCP_NODELAY: {}", e))?;
+
+    // Bind and listen
+    socket
+        .bind(addr)
+        .map_err(|e| format!("Failed to bind to address {}: {}", addr, e))?;
+
+    socket
+        .listen(1024)
+        .map_err(|e| format!("Failed to listen on address {}: {}", addr, e))
 }
 
 async fn serve_http(addr: &str, router: Router) -> Result<(), Box<dyn std::error::Error>> {
-    let addr = SocketAddr::from_str(addr)?;
-    info!("Binding to address: {}", addr);
-    axum_server::bind(addr)
+    let listener = get_listener(addr).await?;
+    let addr = listener.local_addr()?;
+    info!("HTTP server binding to address: {}", addr);
+    axum_server::from_tcp(listener.into_std()?)
         .serve(router.into_make_service())
         .await
         .map_err(|e| e.into())
