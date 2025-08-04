@@ -188,7 +188,10 @@ pub async fn stress(server_uri: &str, workers: usize, total_calls: usize) -> Res
             })
         })
         .collect::<Vec<_>>();
-    info!("Spawned {} worker tasks", handles.len());
+    info!(
+        "Spawned {} worker tasks. Waiting for them to be ready.",
+        handles.len()
+    );
     let mut handles = FuturesUnordered::from_iter(handles);
     barrier.wait().await; // Wait for all workers to be ready
     let start = std::time::Instant::now();

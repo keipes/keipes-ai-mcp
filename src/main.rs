@@ -1,18 +1,20 @@
-use console_subscriber::init as tokio_console_init;
 use dotenvy::dotenv;
-use keipes_ai_mcp::{common::app_env, logs, server::run_server};
+use keipes_ai_mcp::{logs, server::run_server};
 // use keipes_ai_mcp::McpServer;
-use std::env;
+use std::{env, time::Duration};
 use tracing::{info, warn};
+
+#[cfg(feature = "dhat-heap")]
+#[global_allocator]
+static ALLOC: dhat::Alloc = dhat::Alloc;
 
 // #[tokio::main(flavor = "current_thread")]
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    if app_env::use_tokio_console() {
-        tokio_console_init();
-    } else {
-        logs::init_logging()?;
-    }
+    #[cfg(feature = "dhat-heap")]
+    let profiler = dhat::Profiler::new_heap();
+
+    logs::init_logging()?;
     let _ = rustls::crypto::ring::default_provider().install_default();
     // handle dotenv errors gracefully
     let got_env = dotenv().ok();
@@ -23,7 +25,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         );
     } else {
         warn!(
-            "No .env file found at {}, using default environment variables",
+            "No .env file found at {}, using default environment",
             env::current_dir().unwrap().display()
         );
     }
@@ -32,6 +34,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         "Starting the MCP server with tracing enabled, build time: {}",
         build_time
     );
+
+    #[cfg(feature = "dhat-heap")]
+    tokio::spawn(async {
+        // tokio::time::sleep(Duration::from_secs(30)).await;
+        // drop(profiler);
+        if let Err(e) = tokio::signal::ctrl_c().await {
+            warn!("Failed to listen for Ctrl+C: {}", e);
+        }
+        info!("Ctrl+C received, writing dhat profile...");
+        drop(profiler);
+    });
+
     run_server().await;
     Ok(())
 }

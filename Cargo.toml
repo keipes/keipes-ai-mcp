@@ -4,6 +4,10 @@ version = "0.1.0"
 edition = "2021"
 default-run = "main"
 
+[features]
+default = []
+dhat-heap = ["dhat"]
+
 [dependencies]
 rmcp = { path = "../rust-sdk/crates/rmcp", features = [
     "auth",
@@ -26,10 +30,13 @@ rustls = "0.23.29"
 anyhow = "1.0"
 console-subscriber = "0.4.1"
 reqwest = { version = "0.12", default-features = false, features = [
-    "native-tls",
+    # "native-tls",
     "http2",
 ] }
-hyper-tls = { version = "0.6.0" }
+
+# hyper-tls = { version = "0.6.0", default-features = false, features = [
+#     "rustls-tls",
+# ] }
 hyper = { version = "1.6.0", features = ["client", "http1", "http2"] }
 hyper-util = { version = "0.1.16" }
 bytes = "1.10.1"
@@ -39,10 +46,11 @@ thiserror = "2.0.12"
 uuid = "1.17.0"
 dashmap = "6.1.0"
 lru = "0.16.0"
-moka = { version = "0.12.10", features = ["future", "sync"]}
+moka = { version = "0.12.10", features = ["future", "sync"] }
 opool = "0.1.1"
 http-body = "1.0.1"
 tokio-stream = "0.1.17"
+dhat = { version = "0.3", optional = true }
 
 # [lib]
 # name = "keipes_ai_mcp"
