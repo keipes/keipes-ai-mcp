@@ -5,22 +5,22 @@ use std::fmt;
 pub enum StorageError {
     /// Database-specific errors
     Database(String),
-    
+
     /// Serialization errors when converting data to bytes
     Serialization(String),
-    
+
     /// Deserialization errors when converting bytes back to data
     Deserialization(String),
-    
+
     /// Configuration validation errors
     InvalidConfiguration(String),
-    
+
     /// I/O errors (file operations, etc.)
     Io(std::io::Error),
-    
+
     /// Missing required format (key or value)
     MissingFormat(String),
-    
+
     /// Table operation errors
     TableOperation(String),
 }

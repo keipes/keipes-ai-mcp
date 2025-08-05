@@ -1,13 +1,12 @@
 //! Serialization format abstractions
 
 use crate::storage::StorageError;
-use std::ops::Deref;
 
 /// Trait for key serialization/deserialization
 pub trait KeyFormat<T>: Send + Sync {
     /// Serialize a key to bytes
     fn to_bytes(&self, value: &T) -> Result<Vec<u8>, StorageError>;
-    
+
     /// Deserialize a key from bytes
     fn from_bytes(&self, bytes: &[u8]) -> Result<T, StorageError>;
 }
@@ -16,7 +15,7 @@ pub trait KeyFormat<T>: Send + Sync {
 pub trait ValueFormat<T>: Send + Sync {
     /// Serialize a value to bytes
     fn to_bytes(&self, value: &T) -> Result<Vec<u8>, StorageError>;
-    
+
     /// Create a zero-copy view of the value (returns raw bytes for now)
     fn view_bytes<'a>(&self, bytes: &'a [u8]) -> Result<&'a [u8], StorageError> {
         // For Phase 1, just return the raw bytes
@@ -25,5 +24,5 @@ pub trait ValueFormat<T>: Send + Sync {
     }
 }
 
-pub mod rkyv;
 pub mod flatbuffers;
+pub mod rkyv;
