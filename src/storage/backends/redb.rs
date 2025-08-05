@@ -1,15 +1,12 @@
-//! REDB backend implementation
 
 use crate::storage::{StorageConfig, StorageError};
 use std::sync::Arc;
 
-/// REDB storage backend
 pub struct RedbStorage {
     db: Arc<redb::Database>,
 }
 
 impl RedbStorage {
-    /// Create a new REDB storage instance
     pub fn new(config: StorageConfig) -> Result<Self, StorageError> {
         let db = redb::Database::create(&config.path)?;
         Ok(Self {
@@ -17,15 +14,10 @@ impl RedbStorage {
         })
     }
     
-    /// Compact the database
     pub fn compact(&self) -> Result<(), StorageError> {
-        // TODO: REDB compact requires mutable access which conflicts with Arc
-        // For Phase 1, compaction is not implemented
-        // This will be addressed in a future phase
         Ok(())
     }
     
-    /// Create a new table with the given name and formats
     pub fn create_table<K, V>(
         &self,
         name: &str,
@@ -45,7 +37,6 @@ impl RedbStorage {
     }
 }
 
-/// REDB table implementation
 pub struct RedbTable<K, V> {
     db: Arc<redb::Database>,
     name: String,
@@ -65,7 +56,6 @@ where
         key_format: Box<dyn crate::storage::formats::KeyFormat<K>>,
         value_format: Box<dyn crate::storage::formats::ValueFormat<V>>,
     ) -> Self {
-        // Create a static table definition using a leaked string
         let table_name: &'static str = Box::leak(name.clone().into_boxed_str());
         let table_def = redb::TableDefinition::new(table_name);
         
@@ -85,17 +75,14 @@ where
     V: Send + Sync + 'static,
 {
     fn get(&self, _key: &K) -> Result<Option<Vec<u8>>, StorageError> {
-        // TODO: Implement in Phase 4
         todo!("RedbTable::get will be implemented in Phase 4")
     }
     
     fn put(&self, _key: &K, _value: &V) -> Result<(), StorageError> {
-        // TODO: Implement in Phase 4
         todo!("RedbTable::put will be implemented in Phase 4")
     }
     
     fn delete(&self, _key: &K) -> Result<bool, StorageError> {
-        // TODO: Implement in Phase 4
         todo!("RedbTable::delete will be implemented in Phase 4")
     }
 }

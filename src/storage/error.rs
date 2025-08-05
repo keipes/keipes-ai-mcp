@@ -1,27 +1,19 @@
 use std::fmt;
 
-/// Errors that can occur during storage operations
 #[derive(Debug)]
 pub enum StorageError {
-    /// Database-specific errors
     Database(String),
 
-    /// Serialization errors when converting data to bytes
     Serialization(String),
 
-    /// Deserialization errors when converting bytes back to data
     Deserialization(String),
 
-    /// Configuration validation errors
     InvalidConfiguration(String),
 
-    /// I/O errors (file operations, etc.)
     Io(std::io::Error),
 
-    /// Missing required format (key or value)
     MissingFormat(String),
 
-    /// Table operation errors
     TableOperation(String),
 }
 
@@ -54,7 +46,6 @@ impl From<std::io::Error> for StorageError {
     }
 }
 
-// REDB-specific error conversions
 impl From<redb::Error> for StorageError {
     fn from(err: redb::Error) -> Self {
         StorageError::Database(err.to_string())

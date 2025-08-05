@@ -1,13 +1,9 @@
-//! Database backend abstractions
 
 use crate::storage::StorageError;
 
-/// Trait for database backend implementations
 pub trait StorageBackend: Send + Sync {
-    /// Compact the database (optimize storage)
     fn compact(&self) -> Result<(), StorageError>;
     
-    /// Create a new table with the given name and formats
     fn create_table<K, V>(
         &self,
         name: &str,

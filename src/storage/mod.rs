@@ -1,15 +1,12 @@
-//! Storage module providing type-safe, zero-copy database abstraction.
 
 pub use builder::{Storage, StorageBuilder};
 pub use config::{DatabaseBackend, Recreate, StorageConfig};
 pub use error::StorageError;
 
-// Re-export format types for convenience
 pub use formats::flatbuffers::FlatbuffersFormat;
 pub use formats::rkyv::RkyvFormat;
 pub use formats::{KeyFormat, ValueFormat};
 
-// Re-export table types
 pub use table::{Table, TableBuilder};
 
 pub mod builder;
