@@ -4,6 +4,7 @@ use std::{path::Path, sync::Arc};
 
 mod serializers;
 pub mod table;
+pub mod flatbuffers_integration;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Recreate {

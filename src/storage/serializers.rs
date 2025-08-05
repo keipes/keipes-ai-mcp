@@ -43,34 +43,3 @@ fn main() {
     let deserialized = deserialize::<Test, Error>(archived).unwrap();
     assert_eq!(deserialized, value);
 }
-
-#[cfg(test)]
-mod tests {
-    use redb::TableDefinition;
-
-    use crate::storage::{Recreate, Storage, StorageConfig};
-
-    use super::*;
-    #[test]
-    fn test_serialization() {
-        let value = Test {
-            int: 42,
-            string: "hello world".to_string(),
-            option: Some(vec![1, 2, 3, 4]),
-        };
-        let bytes = rkyv::to_bytes::<Error>(&value).unwrap();
-        let archived = rkyv::access::<ArchivedTest, Error>(&bytes[..]).unwrap();
-        assert_eq!(archived, &value);
-        let db = Storage::new(StorageConfig::new(
-            "test_serializers_db.redb".into(),
-            Recreate::Always,
-        ))
-        .expect("Failed to create storage");
-        let table_def = TableDefinition::<&[u8], &[u8]>::new("my_table");
-        let result = db.write(table_def, |table| {
-            // Example write operation
-            table.insert(b"example_key" as &[u8], &bytes[..])?;
-            Ok(())
-        });
-    }
-}

@@ -1,0 +1,10 @@
+// FlatBuffers schema for our test data
+namespace TestData;
+
+table Test {
+    int_val: int32;
+    string_val: string;
+    option_val: [uint8];  // Optional byte array
+}
+
+root_type Test;

@@ -55,6 +55,7 @@ redb = "2.6.2"
 sec_edgar = "1.0.5"
 sec_lib = { git = "https://github.com/keipes/sec_lib.git", version = "0.1.0" }
 rkyv = "0.8.11"
+flatbuffers = "24.3.25"
 
 # [lib]
 # name = "keipes_ai_mcp"
