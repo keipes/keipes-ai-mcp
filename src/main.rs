@@ -8,8 +8,7 @@ use tracing::{info, warn};
 #[global_allocator]
 static ALLOC: dhat::Alloc = dhat::Alloc;
 
-// #[tokio::main(flavor = "current_thread")]
-#[tokio::main]
+#[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     #[cfg(feature = "dhat-heap")]
     let profiler = dhat::Profiler::new_heap();

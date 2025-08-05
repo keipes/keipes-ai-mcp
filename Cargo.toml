@@ -50,7 +50,14 @@ moka = { version = "0.12.10", features = ["future", "sync"] }
 opool = "0.1.1"
 http-body = "1.0.1"
 tokio-stream = "0.1.17"
+<<<<<<< HEAD
 dhat = { version = "0.3", optional = true }
+=======
+redb = "2.6.2"
+sec_edgar = "1.0.5"
+sec_lib = { git = "https://github.com/keipes/sec_lib.git", version = "0.1.0" }
+rkyv = "0.8.11"
+>>>>>>> 982ede1 (DB stub)
 
 # [lib]
 # name = "keipes_ai_mcp"

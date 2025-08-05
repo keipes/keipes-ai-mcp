@@ -63,7 +63,8 @@ use reqwest;
 fn get_transport(uri: &str) -> StreamableHttpClientTransport<reqwest::Client> {
     let http_client = ClientBuilder::new()
         .use_rustls_tls()
-        .tcp_nodelay(true) // Disable Nagle algorithm to reduce 40-50ms delays
+        .tcp_nodelay(true)
+        .http2_prior_knowledge() // Disable Nagle algorithm to reduce 40-50ms delays
         .build()
         .expect("Failed to create HTTP client")
         .into();
