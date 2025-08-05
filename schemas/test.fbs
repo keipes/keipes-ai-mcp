@@ -1,4 +1,4 @@
-// FlatBuffers schema for our test data
+// FlatBuffers schema for our test data and SEC objects
 namespace TestData;
 
 table Test {

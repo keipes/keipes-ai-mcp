@@ -2,9 +2,9 @@ use anyhow::Result;
 use redb::{Database, ReadOnlyTable, Table, TableDefinition};
 use std::{path::Path, sync::Arc};
 
+pub mod flatbuffers_integration;
 mod serializers;
 pub mod table;
-pub mod flatbuffers_integration;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Recreate {
@@ -33,12 +33,12 @@ pub struct Storage {
     db: Arc<Database>,
 }
 
-const CIK_TABLE: TableDefinition<&[u8], &[u8]> = TableDefinition::<&[u8], &[u8]>::new("cik");
+pub const CIK_TABLE: TableDefinition<u64, &[u8]> = TableDefinition::<u64, &[u8]>::new("cik");
 // pub type WriteFn = fn(&mut Table<&[u8], &[u8]>) -> Result<()>;
 // pub type ReadFn = fn(&ReadOnlyTable<&[u8], &[u8]>) -> Result<()>;
 
-pub type WriteFn<'a> = dyn FnOnce(&mut Table<&[u8], &[u8]>) -> Result<()> + 'a;
-pub type ReadFn<'a> = dyn FnOnce(&ReadOnlyTable<&[u8], &[u8]>) -> Result<()> + 'a;
+pub type WriteFn<'a> = dyn FnOnce(&mut Table<u64, &[u8]>) -> Result<()> + 'a;
+pub type ReadFn<'a> = dyn FnOnce(&ReadOnlyTable<u64, &[u8]>) -> Result<()> + 'a;
 
 impl Storage {
     pub fn new(config: StorageConfig) -> Result<Self> {
@@ -49,7 +49,7 @@ impl Storage {
         Ok(Self { db: Arc::new(db) })
     }
 
-    fn write<F>(&self, table: TableDefinition<&[u8], &[u8]>, writer: F) -> Result<(), String>
+    pub fn write<F>(&self, table: TableDefinition<&[u8], &[u8]>, writer: F) -> Result<(), String>
     where
         F: FnOnce(&mut Table<&[u8], &[u8]>) -> Result<()>,
     {

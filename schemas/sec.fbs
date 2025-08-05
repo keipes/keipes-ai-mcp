@@ -1,0 +1,8 @@
+namespace SEC;
+
+table CikValue {
+    company_names: [string];
+    tickers: [string];
+}
+
+root_type CikValue;

@@ -7,11 +7,11 @@ fn main() {
     eprintln!("cargo:rustc-env=BUILD_TIME={}", duration.as_millis());
 
     // Generate FlatBuffers code
-    generate_flatbuffers();
+    generate_flatbuffers("schemas/test.fbs");
+    generate_flatbuffers("schemas/sec.fbs");
 }
 
-fn generate_flatbuffers() {
-    let schema_path = "schemas/test.fbs";
+fn generate_flatbuffers(schema_path: &str) {
     let output_dir = "src/generated";
 
     // Tell cargo to rerun this build script if the schema changes

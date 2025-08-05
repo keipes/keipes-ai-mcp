@@ -1,5 +1,5 @@
 use anyhow::Result;
-use redb::{Database, Key, Table, TableDefinition, Value, WriteTransaction};
+use redb::{Database, Key, ReadOnlyTable, Table, TableDefinition, Value, WriteTransaction};
 use rkyv::{
     access, access_unchecked,
     api::high::{to_bytes_in, HighDeserializer, HighSerializer, HighValidator},
@@ -25,6 +25,71 @@ pub fn iter_ciks() {
         }
         Err(e) => {
             eprintln!("Error creating table: {}", e);
+        }
+    }
+}
+
+struct RedbTable<'a, K, V>
+where
+    K: Key + 'static,
+    V: Value + 'static,
+{
+    db: Arc<Database>,
+    def: TableDefinition<'a, K, V>,
+}
+
+impl<'a, K, V> RedbTable<'a, K, V>
+where
+    K: Key + 'static,
+    V: Value + 'static,
+{
+    pub fn write<F>(&self, writer: F) -> Result<(), String>
+    where
+        F: FnOnce(&mut Table<K, V>) -> Result<()>,
+    {
+        match self.db.begin_write() {
+            Ok(txn) => {
+                let write_ok = {
+                    let mut table: Table<K, V> = txn
+                        .open_table(self.def)
+                        .map_err(|e| format!("Failed to open table: {}", e))?;
+                    writer(&mut table)
+                };
+                match write_ok {
+                    Ok(()) => match txn.commit() {
+                        Ok(()) => Ok(()),
+                        Err(e) => Err(format!("Failed to write to table: {}", e)),
+                    },
+                    Err(e) => match txn.abort() {
+                        Ok(_) => Err(format!("Failed to write to table: {}", e)),
+                        Err(abort_err) => {
+                            Err(format!("Failed to abort transaction: {}", abort_err))
+                        }
+                    },
+                }
+            }
+            Err(e) => {
+                eprintln!("Error creating table: {}", e);
+                Err("Failed to create table".into())
+            }
+        }
+    }
+
+    pub fn read<F>(&self, reader: F) -> Result<(), String>
+    where
+        F: FnOnce(&ReadOnlyTable<K, V>) -> Result<()>,
+    {
+        match self.db.begin_read() {
+            Ok(txn) => {
+                let table = txn
+                    .open_table(self.def)
+                    .map_err(|e| format!("Failed to open table: {}", e))?;
+                reader(&table).map_err(|e| format!("Failed to read from table: {}", e))
+            }
+            Err(e) => {
+                eprintln!("Error creating table: {}", e);
+                Err("Failed to create table".into())
+            }
         }
     }
 }
