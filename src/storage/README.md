@@ -1,176 +1,296 @@
-# Storage Module
+# Storage Module v7
 
-A type-safe, zero-copy database abstraction layer with pluggable backends and serialization formats.
+Type-safe, zero-copy database abstraction with dual API design for maximum performance and convenience.
 
-## API Overview
+## Quick Start
 
 ```rust
-// Storage creation (simple)
-let storage = Storage::new("db.redb")?;
+// Create storage
+let storage = Storage::new("data.redb")?;
 
-// Rkyv table creation (zero-copy)
-let rkyv_table = storage.new_rkyv_table::<u64, CikData>("ciks")?;
+// Get typed tables
+let users = storage.rkyv_table::<u64, User>("users");
+let monsters = storage.flatbuffers_table::<u64, Monster>("monsters");
 
-// Flatbuffers table creation (typed, validated)
-let fb_table = storage.new_flatbuffers_table::<u64, Monster>("monsters")?;
+// Zero-copy operations
+users.put(&123, &user)?;
+let name = users.get(&123, |u| u.name.as_str().to_string())?.unwrap();
 
-// Zero-copy operations with rkyv
-rkyv_table.put(&123, &data)?;
-let result = rkyv_table.get(&123, |data| {
-    format!("Name: {}, Revenue: {}", 
-            data.name.as_str(),           // Direct &str access - TRUE ZERO COPY
-            data.revenue.to_native())     // Direct u64 access
-})?;
-if let Some(info) = result {
-    println!("{}", info);
-}
-
-// Schema validation with flatbuffers
-fb_table.put(&456, &monster_data)?; // Table handles FlatBuffer building
-let result = fb_table.get(&456, |monster| { // Direct typed access
-    format!("HP: {}, Name: {:?}", monster.hp(), monster.name())
-})?;
-if let Some(info) = result {
-    println!("{}", info);
-}
-
-// Scanning with zero-copy access
-let rkyv_results = rkyv_table.scan(|key, data| {
-    if data.revenue.to_native() > 1000.0 {
-        Some((key, data.name.as_str().to_string()))
+// Efficient scanning
+let active_users = users.filter_map(|_id, user| {
+    if user.active.to_native() {
+        Some(user.email.as_str().to_string())
     } else {
         None
     }
 })?;
 
-// FlatBuffers scanning with validation
-let fb_results = fb_table.scan(|key, monster| {
-    if monster.hp() > 50 {
-        Some((key, monster.name().unwrap_or("Unknown").to_string()))
-    } else {
-        None
-    }
+// Memory-efficient processing
+let total_revenue = companies.scan_with(|scanner| {
+    scanner.fold(0.0, |acc, _id, company| {
+        Ok(acc + company.revenue.to_native())
+    })
 })?;
 ```
 
-## Core Traits
+## Core API
 
+### Database Interface
 ```rust
-/// Common backend interface - provides zero-copy access to stored bytes
-trait Backend {
-    fn get<F, R>(&self, table: &str, key: &[u8], accessor: F) -> Result<Option<R>, StorageError>
-        where F: FnOnce(&[u8]) -> R; // Zero-copy access to bytes
+trait Database: Send + Sync {
+    fn get(&self, table: &str, key: &[u8]) -> Result<Option<Vec<u8>>, StorageError>;
     fn put(&self, table: &str, key: &[u8], value: Vec<u8>) -> Result<(), StorageError>;
     fn delete(&self, table: &str, key: &[u8]) -> Result<bool, StorageError>;
-    fn scan<F>(&self, table: &str, callback: F) -> Result<(), StorageError>
-        where F: FnMut(&[u8], &[u8]) -> bool; // key, value -> continue (zero-copy)
+    fn scan(&self, table: &str, callback: &mut dyn FnMut(&[u8], &[u8]) -> bool) -> Result<(), StorageError>;
+    fn put_batch(&self, table: &str, entries: Vec<(Vec<u8>, Vec<u8>)>) -> Result<(), StorageError>;
 }
-
-/// Format-specific table interfaces
-trait RkyvTable<K, V> where 
-    K: AsRef<[u8]> + Clone,
-    V: rkyv::Archive + rkyv::Serialize<rkyv::ser::serializers::AllocSerializer<256>>
-{
-    fn get<F, R>(&self, key: &K, accessor: F) -> Result<Option<R>, StorageError>
-        where F: FnOnce(&V::Archived) -> R;
-    fn put(&self, key: &K, value: &V) -> Result<(), StorageError>;
-    fn delete(&self, key: &K) -> Result<bool, StorageError>;
-    fn scan<F, R>(&self, scanner: F) -> Result<Vec<R>, StorageError>
-        where F: Fn(&K, &V::Archived) -> Option<R>;
-}
-
-trait FlatbuffersTable<K, V> where 
-    K: AsRef<[u8]> + Clone,
-    V: flatbuffers::Follow<'static> + 'static
-{
-    fn get<F, R>(&self, key: &K, accessor: F) -> Result<Option<R>, StorageError>
-        where F: FnOnce(V::Inner) -> R; // Provides typed FlatBuffer access
-    fn put(&self, key: &K, value: &V) -> Result<(), StorageError>; // Takes typed value, serializes internally
-    fn delete(&self, key: &K) -> Result<bool, StorageError>;
-    fn scan<F, R>(&self, scanner: F) -> Result<Vec<R>, StorageError>
-        where F: Fn(&K, V::Inner) -> Option<R>; // Scan with typed FlatBuffer access
-}
-
-// Zero-copy data flow:
-// 1. Backend provides &[u8] access to stored data
-// 2. rkyv: unsafe { rkyv::access_unchecked(&bytes) } → &V::Archived
-// 3. FlatBuffers: root_as_*(&bytes) → V::Inner (typed FlatBuffer access)
-// 4. Tables handle serialization/deserialization internally
 ```
 
-## Key Features
+### Table Interface
+```rust
+impl<K, V, S> Table<K, V, S> {
+    // CRUD operations
+    fn get<F, R>(&self, key: &K, accessor: F) -> Result<Option<R>, StorageError>
+    fn put(&self, key: &K, value: &V) -> Result<(), StorageError>
+    fn delete(&self, key: &K) -> Result<bool, StorageError>
+    
+    // Batch operations
+    fn put_batch(&self, entries: impl IntoIterator<Item = (K, V)>) -> Result<(), StorageError>
+    
+    // Scanning - dual API for different use cases
+    fn filter_map<F, R>(&self, mapper: F) -> Result<Vec<R>, StorageError>  // Collect results
+    fn scan_with<F, R>(&self, processor: F) -> Result<R, StorageError>    // Stream processing
+}
+```
 
-- **True Zero-Copy Access**: Callback-based access provides direct access to archived data without allocation
-- **Format-Specific Optimization**: Rkyv for performance, Flatbuffers for schema validation
-- **Type Safety**: Compile-time serialization guarantees with concrete table types
-- **Pluggable Backends**: REDB implemented, others can be added
-- **Zero-Copy Keys**: Direct memory access for u64, &str keys without allocation
-- **Efficient Scanning**: Callback-based operations with zero-copy data access
+## Dual API Design
+
+### Collect API - `filter_map`
+Best for: Small-medium datasets, chaining operations
+```rust
+let active_emails = users
+    .filter_map(|_id, user| {
+        if user.active.to_native() {
+            Some(user.email.as_str().to_string())
+        } else {
+            None
+        }
+    })?
+    .into_iter()
+    .filter(|email| email.contains("@company.com"))
+    .collect();
+```
+
+### Stream API - `scan_with`  
+Best for: Large datasets, memory efficiency, aggregations
+```rust
+let stats = users.scan_with(|scanner| {
+    scanner.fold(UserStats::default(), |mut acc, _id, user| {
+        acc.total_count += 1;
+        if user.active.to_native() {
+            acc.active_count += 1;
+        }
+        Ok(acc)
+    })
+})?;
+```
+
+## Serialization Formats
+
+### rkyv (Maximum Performance)
+```rust
+let table = storage.rkyv_table::<u64, User>("users");
+
+// Zero-copy string access
+table.get(&123, |user| user.name.as_str().to_string())?;
+
+// Direct numeric access  
+table.get(&123, |user| user.age.to_native())?;
+```
+- **Performance**: ~0ns deserialization, direct memory access
+- **Safety**: Unsafe by default (use `access()` for validation)
+- **Use case**: High-frequency reads, trusted data
+
+### FlatBuffers (Schema Evolution)
+```rust  
+let table = storage.flatbuffers_table::<u64, Monster>("monsters");
+
+// Validated access with bounds checking
+table.get(&456, |monster| monster.hp())?;
+
+// Safe string access
+table.get(&456, |monster| monster.name().unwrap_or("Unknown"))?;
+```
+- **Performance**: ~10ns validation overhead
+- **Safety**: Bounds checking, schema validation
+- **Use case**: Evolving schemas, untrusted data
 
 ## Zero-Copy Details
 
-### Rkyv Format
-- **String access**: `archived_string.as_str()` returns `&str` (zero allocation)
-- **Primitive access**: `archived_u64.to_native()` returns `u64` (direct memory access)
-- **Complex types**: Direct field access on archived structs
-- **Performance**: Fastest possible access, unsafe by default
-
-### Flatbuffers Format  
-- **Validated access**: Bounds checking and schema validation
-- **Direct returns**: `data.hp()` returns `i32`, `data.name()` returns `Option<&str>`
-- **Schema evolution**: Forward/backward compatibility built-in
-- **Safety**: Validated access, safe by default
-
-### Key Design Decisions
-- **Bytes as common format**: Both rkyv and flatbuffers serialize to `Vec<u8>`
-- **Format-specific APIs**: Leverage unique strengths of each format  
-- **Zero-copy keys**: Direct byte representation for database indexing
-- **Backend abstraction**: Database stores bytes, formats handle access patterns
-
-## Implementation Plan
-
-1. **Phase 1**: Error types, simple configuration ✅
-2. **Phase 2**: REDB backend with callback interface ✅  
-3. **Phase 3**: Rkyv table with zero-copy access ✅
-4. **Phase 4**: FlatBuffers table with validation
-5. **Phase 5**: Storage facade and scanning operations
-
-Target: Single file under 300 lines for core functionality.
-
-## Architecture
-
-- **Callback-Based Access**: Direct access to archived data within transaction scope
-- **True Zero-Copy**: Direct memory access via rkyv archived types
-- **Transaction Safety**: Callback lifetime ensures proper resource cleanup
-- **Key Optimization**: Zero-allocation key access for database indexing
-- **Backend Abstraction**: Database-agnostic storage with format specialization
-
-## Usage Examples
-
-### Data Definition
+### Memory Layout
 ```rust
-#[derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)]
-struct CikData {
-    name: String,
-    revenue: f64,
-    employees: u32,
-}
-
-// Zero-copy access patterns:
-let result = table.get(&cik, |data| {
-    (
-        data.name.as_str().to_string(),        // Zero-copy string access
-        data.revenue.to_native(),              // Direct numeric access  
-        data.employees.to_native()             // Direct numeric access
-    )
+// Direct field access on archived data
+let user_data = table.get(&123, |user| {
+    UserSummary {
+        name: user.name.as_str().to_string(),     // Zero-copy &str
+        age: user.age.to_native(),                // Direct u32 access
+        active: user.active.to_native(),          // Direct bool access
+        balance: user.balance.to_native(),        // Direct f64 access
+    }
 })?;
-if let Some((name, revenue, employees)) = result {
-    println!("Company: {}, Revenue: {}, Employees: {}", name, revenue, employees);
-}
 ```
 
 ### Performance Characteristics
-- **Rkyv**: ~0ns deserialization, direct memory access, callback-based
-- **Flatbuffers**: Validated access, schema-aware, ~10ns overhead
-- **Keys**: Zero-copy for u64, &str - direct byte representation
+- **rkyv**: Direct memory access, no allocation on read
+- **FlatBuffers**: Validated access, minimal allocation
+- **Keys**: Zero-copy for `u64`, `&str` - direct byte representation  
 - **Callbacks**: Stack-allocated, zero-cost abstractions
+
+## Advanced Patterns
+
+### Joins
+```rust
+// Hash join pattern
+let users_map: HashMap<u64, String> = users
+    .filter_map(|id, user| Some((*id, user.name.as_str().to_string())))?
+    .into_iter()
+    .collect();
+
+let enriched_orders = orders.filter_map(|_id, order| {
+    let user_id = order.user_id.to_native();
+    users_map.get(&user_id).map(|name| OrderWithUser {
+        amount: order.amount.to_native(),
+        user_name: name.clone(),
+    })
+})?;
+```
+
+### Aggregations
+```rust
+// Group by with fold
+let revenue_by_region = companies.scan_with(|scanner| {
+    scanner.fold(HashMap::new(), |mut acc, _id, company| {
+        let region = company.region.as_str().to_string();
+        let revenue = company.revenue.to_native();
+        *acc.entry(region).or_insert(0.0) += revenue;
+        Ok(acc)
+    })
+})?;
+```
+
+### Time-Series Processing
+```rust
+// Rolling window analysis
+let daily_volumes = trades.scan_with(|scanner| {
+    scanner.fold(Vec::new(), |mut acc, _id, trade| {
+        acc.push((trade.timestamp.to_native(), trade.volume.to_native()));
+        Ok(acc)
+    })
+})?
+.into_iter()
+.group_by_day()
+.map(|(day, trades)| (day, trades.iter().map(|(_, vol)| vol).sum()))
+.collect();
+```
+
+## Package Hierarchy
+
+```
+src/storage/
+├── mod.rs                    # Public API exports
+├── error.rs                  # StorageError definitions
+├── storage.rs               # Storage facade struct
+├── table.rs                 # Table<K,V,S> implementation
+├── scanner.rs               # TableScanner implementation
+├── key/
+│   ├── mod.rs               # Key serialization traits
+│   ├── primitives.rs        # u64, String, &str implementations
+│   └── custom.rs            # UUID, composite keys (future)
+├── serializers/
+│   ├── mod.rs               # ValueSerializer trait
+│   ├── rkyv.rs              # RkyvSerializer, RkyvBorrowedSerializer
+│   ├── flatbuffers.rs       # FlatbuffersSerializer
+│   ├── raw.rs               # RawSerializer
+│   └── protobuf.rs          # ProtobufSerializer (future)
+└── backends/
+    ├── mod.rs               # Database trait
+    ├── redb.rs              # RedbDatabase implementation
+    ├── rocksdb.rs           # RocksDbDatabase (future)
+    └── memory.rs            # MemoryDatabase (testing)
+```
+
+## Interface Points
+
+### Database Abstraction Layer
+```rust
+trait Database: Send + Sync {
+    fn get(&self, table: &str, key: &[u8]) -> Result<Option<Vec<u8>>, StorageError>;
+    fn put(&self, table: &str, key: &[u8], value: &[u8]) -> Result<(), StorageError>;
+    // ... other methods
+}
+```
+**Interface for**: Adding new database backends (PostgreSQL, RocksDB, etc.)
+
+### Key Serialization Layer
+```rust
+trait IntoKeyBytes {
+    fn serialize_key_to(&self, arena: &mut Vec<u8>) -> &[u8];
+}
+trait FromKeyBytes: Sized {
+    fn deserialize_key_from(bytes: &[u8]) -> Result<Self, StorageError>;
+}
+```
+**Interface for**: Adding new key types (UUIDs, custom structs, etc.)
+
+### Value Serialization Layer
+```rust
+trait ValueSerializer<T> {
+    type Output<'a>;
+    fn serialize(&self, value: &T) -> Result<Vec<u8>, StorageError>;
+    fn deserialize<'a>(&self, bytes: &'a [u8]) -> Result<Self::Output<'a>, StorageError>;
+}
+```
+**Interface for**: Adding new serialization formats (Protobuf, Bincode, etc.)
+
+## Future Extensions
+
+The layered architecture enables easy extension:
+
+### Range Operations (Future)
+```rust
+// Will be added without breaking changes
+trait Database {
+    fn scan_range(&self, table: &str, start: &[u8], end: &[u8], ...) -> Result<..>;
+    fn first(&self, table: &str) -> Result<Option<(Vec<u8>, Vec<u8>)>, StorageError>;
+    fn last(&self, table: &str) -> Result<Option<(Vec<u8>, Vec<u8>)>, StorageError>;
+}
+```
+
+### Validation Layer (Future)
+```rust
+// Add validation without refactoring
+trait Validator<T> {
+    fn validate(data: &T) -> Result<(), ValidationError>;
+}
+
+impl<K, V, S> Table<K, V, S> {
+    fn get_validated<Val, F, R>(&self, key: &K, accessor: F) -> Result<Option<R>, StorageError>
+    where Val: Validator<S::Output<'_>>
+}
+```
+
+### Custom Serializers (Future)
+```rust
+// Extend with new formats
+let protobuf_table = storage.protobuf_table::<u64, Message>("messages");
+let bincode_table = storage.bincode_table::<u64, Struct>("structs");
+```
+
+## Design Philosophy
+
+- **Zero-copy first**: Direct memory access without allocation
+- **Callback-based**: Ensure transaction safety and lifetime correctness
+- **Dual API**: Balance convenience (collect) vs efficiency (stream)
+- **Layered design**: Database abstraction + format specialization
+- **Future-proof**: Non-breaking extensibility for range ops, validation, etc.
+- **LLM-friendly**: Predictable patterns, clear types, functional composition
