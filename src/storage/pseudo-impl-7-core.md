@@ -80,6 +80,7 @@ trait Backend: Send + Sync {
     fn delete(&self, table: &str, key: &[u8]) -> Result<bool, StorageError>;
     fn scan(&self, table: &str, callback: &mut dyn FnMut(&[u8], &[u8]) -> bool) -> Result<(), StorageError>;
     fn write_transaction(&self) -> Result<WriteTransaction, StorageError>;
+    fn read_transaction(&self) -> Result<ReadTransaction, StorageError>;
 }
 ```
 
@@ -110,6 +111,20 @@ impl WriteTransaction {
 impl Drop for WriteTransaction {
     fn drop(&mut self) {
         let _ = self.inner.rollback(); // Auto-rollback if not committed
+    }
+}
+
+struct ReadTransaction {
+    inner: RedbReadTransaction,
+}
+
+impl ReadTransaction {
+    fn get(&self, table: &str, key: &[u8]) -> Result<Option<Vec<u8>>, StorageError> {
+        self.inner.get(table, key)
+    }
+    
+    fn scan(&self, table: &str, callback: &mut dyn FnMut(&[u8], &[u8]) -> bool) -> Result<(), StorageError> {
+        self.inner.scan(table, callback)
     }
 }
 
@@ -162,6 +177,7 @@ trait ValueSerializer<T> {
     fn deserialize<'a>(&self, bytes: &'a [u8]) -> Result<Self::Output<'a>, StorageError>;
 }
 
+// Zero-copy rkyv serializer using AlignedVec
 struct RkyvSerializer<T> where T: rkyv::Archive + rkyv::Serialize<rkyv::ser::serializers::AllocSerializer<256>> {
     _phantom: PhantomData<T>,
 }
@@ -180,7 +196,33 @@ where T: rkyv::Archive + rkyv::Serialize<rkyv::ser::serializers::AllocSerializer
     fn serialize(&self, value: &T) -> Result<Vec<u8>, StorageError> {
         let aligned_bytes = rkyv::to_bytes(value)
             .map_err(|e| StorageError::Serialization(e.to_string()))?;
-        Ok(aligned_bytes.to_vec()) // Pragmatic allocation
+        Ok(aligned_bytes.to_vec())
+    }
+    
+    fn deserialize<'a>(&self, bytes: &'a [u8]) -> Result<&'a T::Archived, StorageError> {
+        rkyv::access_unchecked::<T>(bytes)
+            .map_err(|e| StorageError::Serialization(e.to_string()))
+    }
+}
+
+struct RkyvBorrowedSerializer<T> where T: rkyv::Archive {
+    _phantom: PhantomData<T>,
+}
+
+impl<T> RkyvBorrowedSerializer<T> where T: rkyv::Archive {
+    fn new() -> Self {
+        RkyvBorrowedSerializer { _phantom: PhantomData }
+    }
+}
+
+impl<T> ValueSerializer<&[u8]> for RkyvBorrowedSerializer<T>
+where T: rkyv::Archive
+{
+    type Output<'a> = &'a T::Archived;
+    
+    fn serialize(&self, value: &&[u8]) -> Result<Vec<u8>, StorageError> {
+        // Zero-copy: data is already serialized rkyv bytes
+        Ok(value.to_vec())
     }
     
     fn deserialize<'a>(&self, bytes: &'a [u8]) -> Result<&'a T::Archived, StorageError> {
@@ -384,18 +426,41 @@ where
         })?;
         Ok(results)
     }
+    
+    fn put_batch<I>(&self, items: I) -> Result<(), StorageError>
+    where I: IntoIterator<Item = (K, V)>
+    {
+        let mut txn = self.database.write_transaction()?;
+        for (key, value) in items {
+            let mut key_arena = Vec::new();
+            let key_bytes = key.serialize_key_to(&mut key_arena);
+            let value_bytes = self.serializer.serialize(&value)?;
+            txn.put(&self.table_name, key_bytes, &value_bytes)?;
+        }
+        txn.commit()
+    }
+    
+    fn write_transaction<F, R>(&self, operation: F) -> Result<R, StorageError>
+    where F: FnOnce(&mut WriteTransaction, &str, &S) -> Result<R, StorageError>
+    {
+        let mut txn = self.database.write_transaction()?;
+        let result = operation(&mut txn, &self.table_name, &self.serializer)?;
+        txn.commit()?;
+        Ok(result)
+    }
 }
 ```
 
 ## Database Facade Layer
 ```rust
+#[derive(Clone)]
 struct Database {
-    backend: Box<dyn Backend>,
+    backend: Arc<dyn Backend>,
 }
 
 impl Database {
     fn new(path: &str) -> Result<Self, StorageError> {
-        let backend = Box::new(RedbBackend::new(path)?);
+        let backend = Arc::new(RedbBackend::new(path)?);
         Ok(Database { backend })
     }
     
@@ -409,6 +474,14 @@ impl Database {
         V: rkyv::Archive + rkyv::Serialize<rkyv::ser::serializers::AllocSerializer<256>>
     {
         Table::new(self.clone(), name.to_string(), RkyvSerializer::new())
+    }
+    
+    fn rkyv_borrowed_table<K, V>(&self, name: &str) -> Table<K, &[u8], RkyvBorrowedSerializer<V>>
+    where 
+        K: IntoKeyBytes + FromKeyBytes,
+        V: rkyv::Archive
+    {
+        Table::new(self.clone(), name.to_string(), RkyvBorrowedSerializer::new())
     }
     
     fn flatbuffers_table<K, V>(&self, name: &str) -> Table<K, &[u8], FlatbuffersSerializer<V>>
@@ -433,13 +506,15 @@ impl Database {
 let db = Database::new("app.redb")?;
 
 // Create typed tables
-let users = db.rkyv_table::<u64, User>("users");
+let users = db.rkyv_table::<u64, User>("users");              // Direct serialization
+let sessions = db.rkyv_borrowed_table::<u64, Session>("sessions"); // Pre-serialized data
 let monsters = db.flatbuffers_table::<u64, Monster>("monsters");
 let cache = db.raw_table::<String>("cache");
 
 // Simple operations
-users.put(&123, &user)?;
-monsters.put(&456, &monster_bytes)?;  // &[u8] - zero-copy
+users.put(&123, &user)?;                    // rkyv serializes on-demand
+sessions.put(&456, &session_bytes)?;       // &[u8] - zero-copy rkyv data
+monsters.put(&789, &monster_bytes)?;       // &[u8] - zero-copy FlatBuffers
 cache.put(&"session".to_string(), &session_data)?;
 
 // Zero-copy access
