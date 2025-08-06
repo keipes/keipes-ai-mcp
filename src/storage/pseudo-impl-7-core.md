@@ -363,6 +363,32 @@ where
         let scanner = TableScanner::new(self);
         processor(scanner)
     }
+    
+    fn put_batch<I>(&self, items: I) -> Result<(), StorageError>
+    where I: IntoIterator<Item = (K, V)>
+    {
+        let mut key_arena = Vec::with_capacity(64);
+        let mut batch_items = Vec::new();
+        
+        for (key, value) in items {
+            key_arena.clear();
+            let arena_start_len = key_arena.len();
+            let key_bytes = key.serialize_key_to(&mut key_arena);
+            let value_bytes = self.serializer.serialize(&value)?;
+            
+            // Check if arena was actually used
+            if key_arena.len() > arena_start_len {
+                // Arena was used (key like u64) - need to copy
+                batch_items.push((key_bytes.to_vec(), value_bytes));
+            } else {
+                // Zero-copy key (like &str) - key_bytes points to original data
+                batch_items.push((key_bytes.to_vec(), value_bytes));
+            }
+        }
+        
+        let refs: Vec<_> = batch_items.iter().map(|(k, v)| (k.as_slice(), v.as_slice())).collect();
+        self.database.put_batch(&self.table_name, &refs)
+    }
 }
 
 // Streaming iterator adapter
@@ -414,42 +440,6 @@ where
             }
         })?;
         Ok(accumulator)
-    }
-    
-    fn collect_into<F, C>(self, mut collector: F) -> Result<C, StorageError>
-    where 
-        F: FnMut() -> C,
-        C: Extend<(K, S::Output<'static>)> // Note: this would need lifetime workarounds
-    {
-        // This is tricky due to lifetime issues with zero-copy data
-        // Would need a different approach, maybe with owned data extraction
-        todo!("Requires careful lifetime management")
-    }
-    
-    fn put_batch<I>(&self, items: I) -> Result<(), StorageError>
-    where I: IntoIterator<Item = (K, V)>
-    {
-        let mut key_arena = Vec::with_capacity(64);
-        let mut batch_items = Vec::new();
-        
-        for (key, value) in items {
-            key_arena.clear();
-            let arena_start_len = key_arena.len();
-            let key_bytes = key.serialize_key_to(&mut key_arena);
-            let value_bytes = self.serializer.serialize(&value)?;
-            
-            // Check if arena was actually used
-            if key_arena.len() > arena_start_len {
-                // Arena was used (key like u64) - need to copy
-                batch_items.push((key_bytes.to_vec(), value_bytes));
-            } else {
-                // Zero-copy key (like &str) - key_bytes points to original data
-                batch_items.push((key_bytes.to_vec(), value_bytes));
-            }
-        }
-        
-        let refs: Vec<_> = batch_items.iter().map(|(k, v)| (k.as_slice(), v.as_slice())).collect();
-        self.database.put_batch(&self.table_name, &refs)
     }
 }
 ```
