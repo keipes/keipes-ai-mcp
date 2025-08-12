@@ -3,16 +3,19 @@
 //! A high-performance Model Context Protocol (MCP) server implementation
 //! providing advanced tool routing and capability management.
 
+use serde_json::json;
 use std::{future::Future, sync::Arc, time::Duration};
 use tokio::sync::Mutex;
 
 use rmcp::{
-    handler::server::tool::ToolRouter,
+    handler::server::tool::{Parameters, ToolRouter},
     model::*,
     tool, tool_handler, tool_router,
     transport::{streamable_http_server::StreamableHttpService, StreamableHttpServerConfig},
     ServerHandler,
 };
+
+use crate::tools;
 
 pub fn create_nexus_service() -> StreamableHttpService<NexusServer> {
     // let config: StreamableHttpServerConfig = StreamableHttpServerConfig {
@@ -79,6 +82,20 @@ impl NexusServer {
         Ok(CallToolResult::success(vec![Content::text(
             "Counter reset to 0".to_string(),
         )]))
+    }
+
+    #[tool(
+        description = "Get company info. Finds companies with the given substring in one of its names."
+    )]
+    async fn get_company_info(
+        &self,
+        search_substring: Parameters<String>,
+    ) -> Result<CallToolResult, ErrorData> {
+        let s = search_substring.0;
+        // Implement the logic to retrieve company information
+        let data = tools::sec::get_company_substring_search(&s).unwrap();
+        let result = Content::json(data);
+        Ok(CallToolResult::structured(json!(result)))
     }
 }
 

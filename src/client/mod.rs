@@ -2,11 +2,7 @@ use anyhow::{Error, Result};
 use futures::stream::FuturesUnordered;
 use futures::stream::StreamExt;
 
-use reqwest::get;
-use reqwest::tls;
 use reqwest::ClientBuilder;
-use reqwest::Proxy;
-use rmcp::model::ListToolsRequest;
 use rmcp::transport::streamable_http_client::StreamableHttpClientTransportConfig;
 // use lib;
 use rmcp::{
@@ -62,7 +58,6 @@ impl NexusClient {
 use reqwest;
 fn get_transport(uri: &str) -> StreamableHttpClientTransport<reqwest::Client> {
     let http_client = ClientBuilder::new()
-        .use_rustls_tls()
         .tcp_nodelay(true)
         .http2_prior_knowledge() // Disable Nagle algorithm to reduce 40-50ms delays
         .build()

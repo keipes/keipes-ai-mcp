@@ -9,14 +9,14 @@ default = []
 dhat-heap = ["dhat"]
 
 [dependencies]
-rmcp = { path = "../rust-sdk/crates/rmcp", features = [
-    "auth",
+rmcp = { version = "0.5.0", features = [
+    "__reqwest",
     "client",
     "transport-streamable-http-client",
     "transport-streamable-http-server",
 ] }
-
-# rmcp-macros = "0.3"
+bytestack = { path = "../bytestack" }
+rmcp-macros = "0.5.0"
 tokio = { version = "1.47.1", features = ["full"] }
 serde = "1.0.219"
 serde_json = "1.0.142"
@@ -29,10 +29,6 @@ dotenvy = "0.15.7"
 rustls = "0.23.29"
 anyhow = "1.0"
 console-subscriber = "0.4.1"
-reqwest = { version = "0.12", default-features = false, features = [
-    # "native-tls",
-    "http2",
-] }
 
 # hyper-tls = { version = "0.6.0", default-features = false, features = [
 #     "rustls-tls",
@@ -56,6 +52,14 @@ sec_edgar = "1.0.5"
 sec_lib = { git = "https://github.com/keipes/sec_lib.git", version = "0.1.0" }
 rkyv = "0.8.11"
 flatbuffers = "24.3.25"
+tempfile = "3.0"
+reqwest = { version = "0.12", features = [
+    "charset",
+    "http2",
+    "json",
+    "system-proxy",
+    "rustls-tls",
+], default-features = false }
 
 # [lib]
 # name = "keipes_ai_mcp"
@@ -71,10 +75,4 @@ path = "src/client/main.rs"
 
 [dev-dependencies]
 anyhow = "1.0"
-reqwest = { version = "0.12", features = [
-    "charset",
-    "http2",
-    "json",
-    "system-proxy",
-], default-features = false }
 tempfile = "3.0"
