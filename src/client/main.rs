@@ -1,7 +1,7 @@
 use std::env;
 
 use anyhow::Result;
-use keipes_ai_mcp::{client::stress, common::app_env, logs};
+use keipes_ai_mcp::{client::stress, logs};
 
 #[cfg(feature = "dhat-heap")]
 #[global_allocator]

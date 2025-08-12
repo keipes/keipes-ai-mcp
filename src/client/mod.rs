@@ -120,13 +120,38 @@ pub async fn stress(server_uri: &str, workers: usize, total_calls: usize) -> Res
                 let client = create_client(&server_uri)
                     .await
                     .expect("Failed to create client");
-                client
+
+                let tools = client.list_all_tools().await.expect("Failed to list tools");
+                // pretty print tools
+                for tool in tools {
+                    // print name, then tool.input_schema map
+                    tracing::info!("Tool name: {:?}", tool.name);
+                    tracing::info!("Input schema: {:?}", tool.input_schema);
+                }
+                // client
+                //     .call_tool(CallToolRequestParam {
+                //         name: "increment".into(),
+                //         arguments: serde_json::json!({
+                //             // "search_substring": "GOOG".to_string()
+                //         })
+                //         .as_object()
+                //         .cloned(),
+                //     })
+                //     .await
+                //     .expect("Failed to call tool");
+
+                let result = client
                     .call_tool(CallToolRequestParam {
-                        name: "increment".into(),
-                        arguments: serde_json::json!({}).as_object().cloned(),
+                        name: "get_company_info".into(),
+                        arguments: serde_json::json!({
+                            "search_substring": "GOOG".to_string()
+                        })
+                        .as_object()
+                        .cloned(),
                     })
                     .await
-                    .expect("Failed to list tools");
+                    .expect("Failed to call tool");
+                tracing::info!("Tool call result: {:?}", result);
                 tracing::info!("Worker wait for barrier");
                 barrier.wait().await;
                 tracing::info!("Worker started for server: {}", server_uri);
@@ -141,10 +166,20 @@ pub async fn stress(server_uri: &str, workers: usize, total_calls: usize) -> Res
                     // Profile the individual call_tool operation with more precise timing
                     let call_start = std::time::Instant::now();
                     tracing::trace!("About to call tool at {:?}", call_start);
+                    // let response = client
+                    //     .call_tool(CallToolRequestParam {
+                    //         name: "increment".into(),
+                    //         arguments: serde_json::json!({}).as_object().cloned(),
+                    //     })
+                    //     .await;
                     let response = client
                         .call_tool(CallToolRequestParam {
-                            name: "increment".into(),
-                            arguments: serde_json::json!({}).as_object().cloned(),
+                            name: "get_company_info".into(),
+                            arguments: serde_json::json!({
+                                "search_substring": "GOOG".to_string()
+                            })
+                            .as_object()
+                            .cloned(),
                         })
                         .await;
                     let call_end = std::time::Instant::now();

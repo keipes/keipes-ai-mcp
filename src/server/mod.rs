@@ -1,11 +1,10 @@
 pub mod mcp;
-pub mod transport;
 use axum::Router;
 use axum_server::tls_rustls::RustlsConfig;
 use futures::stream::FuturesUnordered;
 use futures::stream::StreamExt;
 use std::{env, net::SocketAddr};
-use tokio::net::{TcpListener, TcpSocket};
+use tokio::net::TcpListener;
 use tracing::{error, info};
 
 use crate::common::metrics::METRICS;

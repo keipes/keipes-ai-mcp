@@ -10,6 +10,7 @@ dhat-heap = ["dhat"]
 
 [dependencies]
 rmcp = { version = "0.5.0", features = [
+    "schemars",
     "__reqwest",
     "client",
     "transport-streamable-http-client",
@@ -60,6 +61,7 @@ reqwest = { version = "0.12", features = [
     "system-proxy",
     "rustls-tls",
 ], default-features = false }
+schemars = "1.0.4"
 
 # [lib]
 # name = "keipes_ai_mcp"

@@ -1,3 +1,4 @@
+#![allow(warnings)]
 // Generated FlatBuffers code
 pub mod sec_generated;
 pub mod test_generated;

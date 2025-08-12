@@ -1,7 +1,6 @@
 use dotenvy::dotenv;
 use keipes_ai_mcp::{logs, server::run_server};
-// use keipes_ai_mcp::McpServer;
-use std::{env, time::Duration};
+use std::env;
 use tracing::{info, warn};
 
 #[cfg(feature = "dhat-heap")]

@@ -9,7 +9,7 @@ use sec_edgar::{
     },
 };
 
-async fn some_func() -> String {
+async fn _some_func() -> String {
     let ticker = "1509607";
     // To save yourself a trip, you can store the file locally and query it instead.
     // The file can be downloaded from [here](https://www.sec.gov/include/ticker.txt).
@@ -61,7 +61,7 @@ mod tests {
         // SET USER_AGENT env var
         std::env::set_var("USER_AGENT", "Keith Smith <keithpsmith@gmail.com>");
 
-        let result = some_func().await;
+        let result = _some_func().await;
         assert_eq!(result, "expected_value");
         println!("Some func {}", result);
     }

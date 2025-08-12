@@ -3,6 +3,7 @@
 //! A high-performance Model Context Protocol (MCP) server implementation
 //! providing advanced tool routing and capability management.
 
+use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::{future::Future, sync::Arc, time::Duration};
 use tokio::sync::Mutex;
@@ -10,6 +11,7 @@ use tokio::sync::Mutex;
 use rmcp::{
     handler::server::tool::{Parameters, ToolRouter},
     model::*,
+    schemars::JsonSchema,
     tool, tool_handler, tool_router,
     transport::{streamable_http_server::StreamableHttpService, StreamableHttpServerConfig},
     ServerHandler,
@@ -89,14 +91,19 @@ impl NexusServer {
     )]
     async fn get_company_info(
         &self,
-        search_substring: Parameters<String>,
+        params: Parameters<CompanyInfoRequest>,
     ) -> Result<CallToolResult, ErrorData> {
-        let s = search_substring.0;
+        let s = params.0.search_substring;
         // Implement the logic to retrieve company information
         let data = tools::sec::get_company_substring_search(&s).unwrap();
         let result = Content::json(data);
         Ok(CallToolResult::structured(json!(result)))
     }
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub struct CompanyInfoRequest {
+    pub search_substring: String,
 }
 
 #[tool_handler]

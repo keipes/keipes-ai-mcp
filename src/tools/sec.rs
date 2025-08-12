@@ -1,5 +1,3 @@
-use crate::generated::CikValue;
-
 use bytestack::{
     backend::RedbBackend, database::Database, serialize::RkyvSerializer, table::TableBehavior,
 };
@@ -85,17 +83,17 @@ pub async fn sec() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-fn foo() {
+fn _foo() {
     let ct = CompaniesTable {
         key_serializer: RkyvSerializer::<u64>::new(),
         value_serializer: RkyvSerializer::<CompanyInfo>::new(),
     };
     let db = get_sec_db();
     let mut count = 0u64;
-    let mut name_chars = 0u64;
+    let mut _name_chars = 0u64;
     db.read(|session| {
         let table = session.table(ct);
-        table.range(0u64, u64::MAX, |cik, company| {
+        table.range(0u64, u64::MAX, |_cik, _company| {
             count += 1;
             // name_chars += company
             //     .names
@@ -108,7 +106,7 @@ fn foo() {
     })
     .unwrap();
     println!("Total companies processed: {}", count);
-    println!("Total name characters processed: {}", name_chars);
+    println!("Total name characters processed: {}", _name_chars);
 }
 
 fn get_sec_db() -> Database<RedbBackend> {
@@ -187,7 +185,7 @@ mod tests {
     async fn test_sec() {
         // sec().await;
         let start = std::time::Instant::now();
-        foo();
+        _foo();
         let duration = start.elapsed();
         println!("Test completed in {:?}", duration);
     }
